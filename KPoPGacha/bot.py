@@ -8,6 +8,7 @@ import tempfile
 import requests
 from PIL import Image
 from telegram.ext import ConversationHandler, MessageHandler, filters
+from collections import defaultdict
 
 pb = PBClient()
 
@@ -29,6 +30,8 @@ PULL10_COST = 90  # Стоимость 10 попыток (скидка)
 ADD_NAME, ADD_GROUP, ADD_ALBUM, ADD_RARITY, ADD_IMAGE, ADD_CONFIRM = range(6)
 
 addcard_data = {}
+
+message_counters = defaultdict(int)
 
 def get_reply_target(update):
     if hasattr(update, 'message') and update.message:
@@ -520,6 +523,20 @@ async def addcard_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ Добавление карточки отменено.")
     return ConversationHandler.END
 
+async def group_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type not in ["group", "supergroup"]:
+        return
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    key = (chat_id, user_id)
+    message_counters[key] += 1
+    if message_counters[key] % 50 == 0:
+        pb_user = pb.get_user_by_telegram_id(user_id)
+        if pb_user:
+            new_stars = pb_user.get("stars", 0) + 25
+            pb.update_user_stars_and_pity(pb_user["id"], new_stars, pb_user.get("pity_legendary", 0), pb_user.get("pity_void", 0))
+            await update.message.reply_text(f"🎉 @{update.effective_user.username or update.effective_user.first_name}, вы получили 25 звёзд за активность в чате!")
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -549,6 +566,7 @@ def main():
     app.add_handler(addcard_conv)
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
+    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
     app.run_polling()
 
 if __name__ == "__main__":
