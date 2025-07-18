@@ -39,10 +39,11 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pb_user:
         await update.message.reply_text("Профиль не найден. Используйте /start.")
         return
+    rank = pb.get_rank(pb_user.get('level', 1))
     text = (
         f"Имя: {pb_user.get('name', '')}\n"
-        f"Уровень: {pb_user.get('level', 1)}\n"
-        f"Опыт: {pb_user.get('exp', 0)}\n"
+        f"Уровень: {pb_user.get('level', 1)} ({rank})\n"
+        f"Опыт: {pb_user.get('exp', 0)} / {pb.exp_to_next_level(pb_user.get('level', 1))}\n"
         f"Звёзды: {pb_user.get('stars', 0)}\n"
         f"Pity Legendary: {pb_user.get('pity_legendary', 0)}\n"
         f"Pity Void: {pb_user.get('pity_void', 0)}"
@@ -63,8 +64,9 @@ async def pull_once(user, pb_user, update, pull_type="single"):
     pity_void = pb_user.get("pity_void", 0)
     stars = pb_user.get("stars", 0)
     user_id = pb_user["id"]
+    level = pb_user.get("level", 1)
+    exp = pb_user.get("exp", 0)
 
-    # Проверка звёзд
     if stars < PULL_COST:
         await update.message.reply_text("Недостаточно звёзд для попытки!")
         return
@@ -92,8 +94,19 @@ async def pull_once(user, pb_user, update, pull_type="single"):
     pb.add_card_to_user(user_id, card["id"])
     pb.add_pull_history(user_id, card["id"], pull_type)
 
+    # Опыт за карточку
+    base_exp = pb.RARITY_EXP.get(card["rarity"], 1)
+    is_first = pb.is_first_card(user_id, card["id"])
+    total_exp = base_exp + (base_exp // 2 if is_first else 0)
+    updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
+
     # Ответ пользователю
-    text = f"Выпала карта: {card['name']} ({card['group']})\nРедкость: {card['rarity']}★"
+    text = f"Выпала карта: {card['name']} ({card['group']})\nРедкость: {card['rarity']}★\n+{base_exp} опыта"
+    if is_first:
+        text += " (первое получение, бонус +50%)"
+    if levelup:
+        rank = pb.get_rank(updated_user.get('level', 1))
+        text += f"\nПоздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})"
     if card.get("image_url"):
         await update.message.reply_photo(card["image_url"], caption=text)
     else:
@@ -117,12 +130,15 @@ async def pull10(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if stars < PULL10_COST:
         await update.message.reply_text("Недостаточно звёзд для 10 попыток!")
         return
-    # Списываем звёзды сразу
     user_id = pb_user["id"]
     pity_legendary = pb_user.get("pity_legendary", 0)
     pity_void = pb_user.get("pity_void", 0)
+    level = pb_user.get("level", 1)
+    exp = pb_user.get("exp", 0)
     stars -= PULL10_COST
     results = []
+    total_exp = 0
+    levelup = False
     for i in range(10):
         rarity = choose_rarity(pity_legendary, pity_void)
         card = pb.get_random_card_by_rarity(rarity)
@@ -140,8 +156,16 @@ async def pull10(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pity_void += 1
         pb.add_card_to_user(user_id, card["id"])
         pb.add_pull_history(user_id, card["id"], "multi")
-        results.append(f"{i+1}. {card['name']} ({card['group']}) — {card['rarity']}★")
+        base_exp = pb.RARITY_EXP.get(card["rarity"], 1)
+        is_first = pb.is_first_card(user_id, card["id"])
+        exp_gain = base_exp + (base_exp // 2 if is_first else 0)
+        total_exp += exp_gain
+        results.append(f"{i+1}. {card['name']} ({card['group']}) — {card['rarity']}★ +{exp_gain} опыта" + (" (первое получение)" if is_first else ""))
+    updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
     pb.update_user_stars_and_pity(user_id, stars, pity_legendary, pity_void)
+    if levelup:
+        rank = pb.get_rank(updated_user.get('level', 1))
+        results.append(f"\nПоздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})")
     await update.message.reply_text("\n".join(results))
 
 async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):

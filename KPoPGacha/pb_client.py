@@ -1,7 +1,19 @@
 import httpx
 import random
 from datetime import datetime, timezone
+from math import ceil
 from config import POCKETBASE_URL, POCKETBASE_BOT_EMAIL, POCKETBASE_BOT_PASSWORD
+
+RANKS = [
+    "Стажёр V", "Стажёр IV", "Стажёр III", "Стажёр II", "Стажёр I",
+    "Новичок V", "Новичок IV", "Новичок III", "Новичок II", "Новичок I",
+    "Восходящая звезда V", "Восходящая звезда IV", "Восходящая звезда III", "Восходящая звезда II", "Восходящая звезда I",
+    "Идол V", "Идол IV", "Идол III", "Идол II", "Идол I",
+    "Суперзвезда V", "Суперзвезда IV", "Суперзвезда III", "Суперзвезда II", "Суперзвезда I",
+    "Легенда"
+]
+
+RARITY_EXP = {1: 1, 2: 5, 3: 15, 4: 50, 5: 100, 6: 250}
 
 class PBClient:
     def __init__(self):
@@ -116,4 +128,35 @@ class PBClient:
         data = {"stars": new_stars, "last_daily": datetime.now(timezone.utc).isoformat()}
         resp = httpx.patch(url, headers=self.headers, json=data)
         resp.raise_for_status()
-        return resp.json(), reward 
+        return resp.json(), reward
+
+    def is_first_card(self, user_id, card_id):
+        url = f"{self.base_url}/collections/user_cards/records"
+        params = {"filter": f'user_id="{user_id}" && card_id="{card_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if not items:
+            return True
+        return items[0].get("count", 0) == 0
+
+    def exp_to_next_level(self, level):
+        return ceil(100 * (1.15 ** (level - 1)))
+
+    def add_exp_and_check_levelup(self, user_id, current_level, current_exp, add_exp):
+        level = current_level
+        exp = current_exp + add_exp
+        up = False
+        while exp >= self.exp_to_next_level(level) and level < len(RANKS):
+            exp -= self.exp_to_next_level(level)
+            level += 1
+            up = True
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        data = {"level": level, "exp": exp}
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json(), up
+
+    def get_rank(self, level):
+        idx = min(level - 1, len(RANKS) - 1)
+        return RANKS[idx] 
