@@ -21,23 +21,37 @@ RARITY_VALUES = [rarity for rarity, _ in RARITY_CHANCES]
 PULL_COST = 10  # Стоимость одной попытки в звёздах
 PULL10_COST = 90  # Стоимость 10 попыток (скидка)
 
+def get_reply_target(update):
+    if hasattr(update, 'message') and update.message:
+        return update.message
+    elif hasattr(update, 'callback_query') and update.callback_query and update.callback_query.message:
+        return update.callback_query.message
+    return None
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_reply_target(update)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         pb.create_user(user.id, user.full_name)
-        await update.message.reply_text(f"Добро пожаловать, {user.full_name}! Ваш игровой профиль создан.")
+        if target:
+            await target.reply_text(f"Добро пожаловать, {user.full_name}! Ваш игровой профиль создан.")
     else:
-        await update.message.reply_text(f"С возвращением, {user.full_name}!")
+        if target:
+            await target.reply_text(f"С возвращением, {user.full_name}!")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("/start - начать\n/profile - профиль\n/pull - попытка гачи (10 звёзд)\n/pull10 - 10 попыток (90 звёзд)\n/inventory - коллекция\n/help - помощь")
+    target = get_reply_target(update)
+    if target:
+        await target.reply_text("/start - начать\n/profile - профиль\n/pull - попытка гачи (10 звёзд)\n/pull10 - 10 попыток (90 звёзд)\n/inventory - коллекция\n/daily - ежедневка\n/history - история\n/pity - pity-счётчики\n/leaderboard - топ\n/settings - настройки\n/menu - меню\n/help - помощь")
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_reply_target(update)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        if target:
+            await target.reply_text("Профиль не найден. Используйте /start.")
         return
     rank = pb.get_rank(pb_user.get('level', 1))
     text = (
@@ -48,7 +62,8 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Pity Legendary: {pb_user.get('pity_legendary', 0)}\n"
         f"Pity Void: {pb_user.get('pity_void', 0)}"
     )
-    await update.message.reply_text(text)
+    if target:
+        await target.reply_text(text)
 
 # --- Гача логика ---
 def choose_rarity(pity_legendary, pity_void):
@@ -60,6 +75,7 @@ def choose_rarity(pity_legendary, pity_void):
     return random.choices(RARITY_VALUES, weights=RARITY_WEIGHTS, k=1)[0]
 
 async def pull_once(user, pb_user, update, pull_type="single"):
+    target = get_reply_target(update)
     pity_legendary = pb_user.get("pity_legendary", 0)
     pity_void = pb_user.get("pity_void", 0)
     stars = pb_user.get("stars", 0)
@@ -68,13 +84,15 @@ async def pull_once(user, pb_user, update, pull_type="single"):
     exp = pb_user.get("exp", 0)
 
     if stars < PULL_COST:
-        await update.message.reply_text("Недостаточно звёзд для попытки!")
+        if target:
+            await target.reply_text("Недостаточно звёзд для попытки!")
         return
 
     rarity = choose_rarity(pity_legendary, pity_void)
     card = pb.get_random_card_by_rarity(rarity)
     if not card:
-        await update.message.reply_text(f"Нет карточек с редкостью {rarity}★ в базе!")
+        if target:
+            await target.reply_text(f"Нет карточек с редкостью {rarity}★ в базе!")
         return
 
     # Pity-счётчики
@@ -108,27 +126,24 @@ async def pull_once(user, pb_user, update, pull_type="single"):
         rank = pb.get_rank(updated_user.get('level', 1))
         text += f"\nПоздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})"
     if card.get("image_url"):
-        await update.message.reply_photo(card["image_url"], caption=text)
+        if target:
+            await target.reply_photo(card["image_url"], caption=text)
     else:
-        await update.message.reply_text(text)
+        if target:
+            await target.reply_text(text)
 
 async def pull(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    pb_user = pb.get_user_by_telegram_id(user.id)
-    if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
-        return
-    await pull_once(user, pb_user, update, pull_type="single")
+    await pull_once(update.effective_user, pb.get_user_by_telegram_id(update.effective_user.id), update, pull_type="single")
 
 async def pull10(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    pb_user = pb.get_user_by_telegram_id(user.id)
-    if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
-        return
+    await pull10_impl(update.effective_user, pb.get_user_by_telegram_id(update.effective_user.id), update)
+
+async def pull10_impl(user, pb_user, update):
+    target = get_reply_target(update)
     stars = pb_user.get("stars", 0)
     if stars < PULL10_COST:
-        await update.message.reply_text("Недостаточно звёзд для 10 попыток!")
+        if target:
+            await target.reply_text("Недостаточно звёзд для 10 попыток!")
         return
     user_id = pb_user["id"]
     pity_legendary = pb_user.get("pity_legendary", 0)
@@ -166,53 +181,64 @@ async def pull10(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if levelup:
         rank = pb.get_rank(updated_user.get('level', 1))
         results.append(f"\nПоздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})")
-    await update.message.reply_text("\n".join(results))
+    if target:
+        await target.reply_text("\n".join(results))
 
 async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_reply_target(update)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        if target:
+            await target.reply_text("Профиль не найден. Используйте /start.")
         return
     user_id = pb_user["id"]
     cards = pb.get_user_inventory(user_id)
     if not cards:
-        await update.message.reply_text("Ваша коллекция пуста!")
+        if target:
+            await target.reply_text("Ваша коллекция пуста!")
         return
-    # Формируем текстовый список
     lines = []
     for c in cards:
         card = c.get("expand", {}).get("card_id", {})
         if not card:
             continue
         lines.append(f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ ×{c.get('count', 1)}")
-    await update.message.reply_text("\n".join(lines))
+    if target:
+        await target.reply_text("\n".join(lines))
 
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_reply_target(update)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        if target:
+            await target.reply_text("Профиль не найден. Используйте /start.")
         return
     available, last_dt = pb.check_daily_available(pb_user)
     if not available:
-        await update.message.reply_text("Вы уже получали ежедневную награду сегодня! Возвращайтесь завтра.")
+        if target:
+            await target.reply_text("Вы уже получали ежедневную награду сегодня! Возвращайтесь завтра.")
         return
     user_id = pb_user["id"]
     stars = pb_user.get("stars", 0)
     updated_user, reward = pb.give_daily_reward(user_id, stars)
-    await update.message.reply_text(f"Вы получили {reward} звёзд за ежедневный вход! До встречи завтра ✨")
+    if target:
+        await target.reply_text(f"Вы получили {reward} звёзд за ежедневный вход! До встречи завтра ✨")
 
 async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_reply_target(update)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        if target:
+            await target.reply_text("Профиль не найден. Используйте /start.")
         return
     user_id = pb_user["id"]
     pulls = pb.get_pull_history(user_id, limit=10)
     if not pulls:
-        await update.message.reply_text("История пуста.")
+        if target:
+            await target.reply_text("История пуста.")
         return
     lines = []
     for p in pulls:
@@ -220,22 +246,28 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not card:
             continue
         lines.append(f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ [{p.get('pull_type', '')}]")
-    await update.message.reply_text("Последние попытки:\n" + "\n".join(lines))
+    if target:
+        await target.reply_text("Последние попытки:\n" + "\n".join(lines))
 
 async def pity(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_reply_target(update)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        if target:
+            await target.reply_text("Профиль не найден. Используйте /start.")
         return
     user_id = pb_user["id"]
     pity_legendary, pity_void = pb.get_pity_status(user_id)
-    await update.message.reply_text(f"Pity Legendary: {pity_legendary}/80\nPity Void: {pity_void}/165")
+    if target:
+        await target.reply_text(f"Pity Legendary: {pity_legendary}/80\nPity Void: {pity_void}/165")
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_reply_target(update)
     top = pb.get_leaderboard(limit=10)
     if not top:
-        await update.message.reply_text("Лидерборд пуст.")
+        if target:
+            await target.reply_text("Лидерборд пуст.")
         return
     lines = ["🏆 Топ коллекционеров:"]
     for i, user in enumerate(top, 1):
@@ -244,16 +276,19 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
         exp = user.get("exp", 0)
         rank = pb.get_rank(level)
         lines.append(f"{i}. {name} — {level} ({rank}), опыт: {exp}")
-    await update.message.reply_text("\n".join(lines))
+    if target:
+        await target.reply_text("\n".join(lines))
 
 async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_reply_target(update)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        if target:
+            await target.reply_text("Профиль не найден. Используйте /start.")
         return
-    # Пока только заглушка, можно добавить опции позже
-    await update.message.reply_text("Настройки профиля будут доступны в будущих обновлениях.")
+    if target:
+        await target.reply_text("Настройки профиля будут доступны в будущих обновлениях.")
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -264,36 +299,33 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("Настройки", callback_data="settings")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Главное меню:", reply_markup=reply_markup)
+    target = get_reply_target(update)
+    if target:
+        await target.reply_text("Главное меню:", reply_markup=reply_markup)
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-    fake_update = Update(
-        update.update_id,
-        message=query.message,
-        effective_user=query.from_user
-    )
-    # Вызываем соответствующую команду
+    # Просто вызываем нужную функцию
     if data == "profile":
-        await profile(fake_update, context)
+        await profile(update, context)
     elif data == "inventory":
-        await inventory(fake_update, context)
+        await inventory(update, context)
     elif data == "pull":
-        await pull(fake_update, context)
+        await pull(update, context)
     elif data == "pull10":
-        await pull10(fake_update, context)
+        await pull10(update, context)
     elif data == "daily":
-        await daily(fake_update, context)
+        await daily(update, context)
     elif data == "history":
-        await history(fake_update, context)
+        await history(update, context)
     elif data == "pity":
-        await pity(fake_update, context)
+        await pity(update, context)
     elif data == "leaderboard":
-        await leaderboard(fake_update, context)
+        await leaderboard(update, context)
     elif data == "settings":
-        await settings(fake_update, context)
+        await settings(update, context)
     else:
         await query.edit_message_text("Неизвестная команда.")
 
