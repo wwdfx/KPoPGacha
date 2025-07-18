@@ -35,15 +35,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pb_user:
         pb.create_user(user.id, user.full_name)
         if target:
-            await target.reply_text(f"Добро пожаловать, {user.full_name}! Ваш игровой профиль создан.")
+            await target.reply_text(f"👋 Добро пожаловать, <b>{user.full_name}</b>!\nВаш игровой профиль создан.", parse_mode="HTML")
     else:
         if target:
-            await target.reply_text(f"С возвращением, {user.full_name}!")
+            await target.reply_text(f"✨ С возвращением, <b>{user.full_name}</b>!", parse_mode="HTML")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
     if target:
-        await target.reply_text("/start - начать\n/profile - профиль\n/pull - попытка гачи (10 звёзд)\n/pull10 - 10 попыток (90 звёзд)\n/inventory - коллекция\n/daily - ежедневка\n/history - история\n/pity - pity-счётчики\n/leaderboard - топ\n/settings - настройки\n/menu - меню\n/help - помощь")
+        await target.reply_text(
+            "<b>Доступные команды:</b>\n"
+            "<b>/menu</b> — главное меню\n"
+            "<b>/profile</b> — ваш профиль\n"
+            "<b>/pull</b> — гача (1 попытка)\n"
+            "<b>/pull10</b> — гача (10 попыток)\n"
+            "<b>/inventory</b> — коллекция\n"
+            "<b>/daily</b> — ежедневка\n"
+            "<b>/history</b> — история попыток\n"
+            "<b>/pity</b> — pity-счётчики\n"
+            "<b>/leaderboard</b> — топ игроков\n"
+            "<b>/settings</b> — настройки\n"
+            "<b>/help</b> — помощь",
+            parse_mode="HTML"
+        )
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
@@ -51,19 +65,20 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.")
+            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
         return
     rank = pb.get_rank(pb_user.get('level', 1))
     text = (
-        f"Имя: {pb_user.get('name', '')}\n"
-        f"Уровень: {pb_user.get('level', 1)} ({rank})\n"
-        f"Опыт: {pb_user.get('exp', 0)} / {pb.exp_to_next_level(pb_user.get('level', 1))}\n"
-        f"Звёзды: {pb_user.get('stars', 0)}\n"
-        f"Pity Legendary: {pb_user.get('pity_legendary', 0)}\n"
-        f"Pity Void: {pb_user.get('pity_void', 0)}"
+        f"<b>👤 Профиль:</b>\n"
+        f"<b>Имя:</b> {pb_user.get('name', '')}\n"
+        f"<b>Уровень:</b> {pb_user.get('level', 1)} <i>({rank})</i>\n"
+        f"<b>Опыт:</b> {pb_user.get('exp', 0)} / {pb.exp_to_next_level(pb_user.get('level', 1))}\n"
+        f"<b>⭐ Звёзды:</b> {pb_user.get('stars', 0)}\n"
+        f"<b>🎯 Pity Legendary:</b> {pb_user.get('pity_legendary', 0)} / 80\n"
+        f"<b>🕳️ Pity Void:</b> {pb_user.get('pity_void', 0)} / 165"
     )
     if target:
-        await target.reply_text(text)
+        await target.reply_text(text, parse_mode="HTML")
 
 # --- Гача логика ---
 def choose_rarity(pity_legendary, pity_void):
@@ -85,14 +100,14 @@ async def pull_once(user, pb_user, update, pull_type="single"):
 
     if stars < PULL_COST:
         if target:
-            await target.reply_text("Недостаточно звёзд для попытки!")
+            await target.reply_text("<b>Недостаточно звёзд для попытки!</b>", parse_mode="HTML")
         return
 
     rarity = choose_rarity(pity_legendary, pity_void)
     card = pb.get_random_card_by_rarity(rarity)
     if not card:
         if target:
-            await target.reply_text(f"Нет карточек с редкостью {rarity}★ в базе!")
+            await target.reply_text(f"Нет карточек с редкостью {rarity}★ в базе!", parse_mode="HTML")
         return
 
     # Pity-счётчики
@@ -119,18 +134,18 @@ async def pull_once(user, pb_user, update, pull_type="single"):
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
 
     # Ответ пользователю
-    text = f"Выпала карта: {card['name']} ({card['group']})\nРедкость: {card['rarity']}★\n+{base_exp} опыта"
+    text = f"<b>Выпала карта:</b> <b>{card['name']}</b> (<i>{card['group']}</i>)\n<b>Редкость:</b> <b>{card['rarity']}★</b>\n<b>+{base_exp} опыта</b>"
     if is_first:
-        text += " (первое получение, бонус +50%)"
+        text += " <i>(первое получение, бонус +50%)</i>"
     if levelup:
         rank = pb.get_rank(updated_user.get('level', 1))
-        text += f"\nПоздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})"
+        text += f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>"
     if card.get("image_url"):
         if target:
-            await target.reply_photo(card["image_url"], caption=text)
+            await target.reply_photo(card["image_url"], caption=text, parse_mode="HTML")
     else:
         if target:
-            await target.reply_text(text)
+            await target.reply_text(text, parse_mode="HTML")
 
 async def pull(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await pull_once(update.effective_user, pb.get_user_by_telegram_id(update.effective_user.id), update, pull_type="single")
@@ -143,7 +158,7 @@ async def pull10_impl(user, pb_user, update):
     stars = pb_user.get("stars", 0)
     if stars < PULL10_COST:
         if target:
-            await target.reply_text("Недостаточно звёзд для 10 попыток!")
+            await target.reply_text("<b>Недостаточно звёзд для 10 попыток!</b>", parse_mode="HTML")
         return
     user_id = pb_user["id"]
     pity_legendary = pb_user.get("pity_legendary", 0)
@@ -151,7 +166,7 @@ async def pull10_impl(user, pb_user, update):
     level = pb_user.get("level", 1)
     exp = pb_user.get("exp", 0)
     stars -= PULL10_COST
-    results = []
+    results = ["<b>Результаты 10 попыток:</b>"]
     total_exp = 0
     levelup = False
     for i in range(10):
@@ -175,14 +190,14 @@ async def pull10_impl(user, pb_user, update):
         is_first = pb.is_first_card(user_id, card["id"])
         exp_gain = base_exp + (base_exp // 2 if is_first else 0)
         total_exp += exp_gain
-        results.append(f"{i+1}. {card['name']} ({card['group']}) — {card['rarity']}★ +{exp_gain} опыта" + (" (первое получение)" if is_first else ""))
+        results.append(f"{i+1}. <b>{card['name']}</b> (<i>{card['group']}</i>) — <b>{card['rarity']}★</b> <b>+{exp_gain} опыта</b>" + (" <i>(первое получение)</i>" if is_first else ""))
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
     pb.update_user_stars_and_pity(user_id, stars, pity_legendary, pity_void)
     if levelup:
         rank = pb.get_rank(updated_user.get('level', 1))
-        results.append(f"\nПоздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})")
+        results.append(f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>")
     if target:
-        await target.reply_text("\n".join(results))
+        await target.reply_text("\n".join(results), parse_mode="HTML")
 
 async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
@@ -190,22 +205,22 @@ async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.")
+            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
         return
     user_id = pb_user["id"]
     cards = pb.get_user_inventory(user_id)
     if not cards:
         if target:
-            await target.reply_text("Ваша коллекция пуста!")
+            await target.reply_text("Ваша коллекция пуста!", parse_mode="HTML")
         return
-    lines = []
+    lines = ["<b>🎴 Ваша коллекция:</b>"]
     for c in cards:
         card = c.get("expand", {}).get("card_id", {})
         if not card:
             continue
-        lines.append(f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ ×{c.get('count', 1)}")
+        lines.append(f"<b>{card.get('name', '???')}</b> (<i>{card.get('group', '-')}</i>) — <b>{card.get('rarity', '?')}★</b> ×{c.get('count', 1)}")
     if target:
-        await target.reply_text("\n".join(lines))
+        await target.reply_text("\n".join(lines), parse_mode="HTML")
 
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
@@ -213,18 +228,18 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.")
+            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
         return
     available, last_dt = pb.check_daily_available(pb_user)
     if not available:
         if target:
-            await target.reply_text("Вы уже получали ежедневную награду сегодня! Возвращайтесь завтра.")
+            await target.reply_text("<b>Вы уже получали ежедневную награду сегодня! Возвращайтесь завтра.</b>", parse_mode="HTML")
         return
     user_id = pb_user["id"]
     stars = pb_user.get("stars", 0)
     updated_user, reward = pb.give_daily_reward(user_id, stars)
     if target:
-        await target.reply_text(f"Вы получили {reward} звёзд за ежедневный вход! До встречи завтра ✨")
+        await target.reply_text(f"<b>🎁 Вы получили {reward} звёзд за ежедневный вход!</b>\nДо встречи завтра ✨", parse_mode="HTML")
 
 async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
@@ -232,22 +247,22 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.")
+            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
         return
     user_id = pb_user["id"]
     pulls = pb.get_pull_history(user_id, limit=10)
     if not pulls:
         if target:
-            await target.reply_text("История пуста.")
+            await target.reply_text("История пуста.", parse_mode="HTML")
         return
-    lines = []
+    lines = ["<b>🕓 Последние попытки:</b>"]
     for p in pulls:
         card = p.get("expand", {}).get("card_id", {})
         if not card:
             continue
-        lines.append(f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ [{p.get('pull_type', '')}]")
+        lines.append(f"<b>{card.get('name', '???')}</b> (<i>{card.get('group', '-')}</i>) — <b>{card.get('rarity', '?')}★</b> [<i>{p.get('pull_type', '')}</i>]")
     if target:
-        await target.reply_text("Последние попытки:\n" + "\n".join(lines))
+        await target.reply_text("\n".join(lines), parse_mode="HTML")
 
 async def pity(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
@@ -255,29 +270,29 @@ async def pity(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.")
+            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
         return
     user_id = pb_user["id"]
     pity_legendary, pity_void = pb.get_pity_status(user_id)
     if target:
-        await target.reply_text(f"Pity Legendary: {pity_legendary}/80\nPity Void: {pity_void}/165")
+        await target.reply_text(f"<b>🎯 Pity Legendary:</b> {pity_legendary}/80\n<b>🕳️ Pity Void:</b> {pity_void}/165", parse_mode="HTML")
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
     top = pb.get_leaderboard(limit=10)
     if not top:
         if target:
-            await target.reply_text("Лидерборд пуст.")
+            await target.reply_text("Лидерборд пуст.", parse_mode="HTML")
         return
-    lines = ["🏆 Топ коллекционеров:"]
+    lines = ["<b>🏆 Топ коллекционеров:</b>"]
     for i, user in enumerate(top, 1):
-        name = user.get("name") or f"User {user.get('telegram_id', '')}"
+        name = user.get("name") or f"User {user.get('telegram_id', '')}" 
         level = user.get("level", 1)
         exp = user.get("exp", 0)
         rank = pb.get_rank(level)
-        lines.append(f"{i}. {name} — {level} ({rank}), опыт: {exp}")
+        lines.append(f"{i}. <b>{name}</b> — <b>{level}</b> <i>({rank})</i>, опыт: <b>{exp}</b>")
     if target:
-        await target.reply_text("\n".join(lines))
+        await target.reply_text("\n".join(lines), parse_mode="HTML")
 
 async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
@@ -285,23 +300,23 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.")
+            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
         return
     if target:
-        await target.reply_text("Настройки профиля будут доступны в будущих обновлениях.")
+        await target.reply_text("<b>⚙️ Настройки профиля будут доступны в будущих обновлениях.</b>", parse_mode="HTML")
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("Профиль", callback_data="profile"), InlineKeyboardButton("Инвентарь", callback_data="inventory")],
-        [InlineKeyboardButton("Гача (1)", callback_data="pull"), InlineKeyboardButton("Гача (10)", callback_data="pull10")],
-        [InlineKeyboardButton("Ежедневка", callback_data="daily"), InlineKeyboardButton("История", callback_data="history")],
-        [InlineKeyboardButton("Pity", callback_data="pity"), InlineKeyboardButton("Лидерборд", callback_data="leaderboard")],
-        [InlineKeyboardButton("Настройки", callback_data="settings")],
+        [InlineKeyboardButton("👤 Профиль", callback_data="profile"), InlineKeyboardButton("🎴 Инвентарь", callback_data="inventory")],
+        [InlineKeyboardButton("🎲 Гача (1)", callback_data="pull"), InlineKeyboardButton("🔟 Гача (10)", callback_data="pull10")],
+        [InlineKeyboardButton("🎁 Ежедневка", callback_data="daily"), InlineKeyboardButton("🕓 История", callback_data="history")],
+        [InlineKeyboardButton("🎯 Pity", callback_data="pity"), InlineKeyboardButton("🏆 Лидерборд", callback_data="leaderboard")],
+        [InlineKeyboardButton("⚙️ Настройки", callback_data="settings")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     target = get_reply_target(update)
     if target:
-        await target.reply_text("Главное меню:", reply_markup=reply_markup)
+        await target.reply_text("<b>Главное меню:</b>", reply_markup=reply_markup, parse_mode="HTML")
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
