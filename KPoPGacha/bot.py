@@ -332,28 +332,33 @@ async def showcard_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     card = resp.json()
     user_id = query.from_user.id
-    # Проверяем, есть ли карточка у пользователя (count > 0)
     user_cards = pb.get_user_inventory(pb.get_user_by_telegram_id(user_id)["id"])
     user_card = next((c for c in user_cards if c.get("card_id") == card_id or (c.get("expand", {}).get("card_id", {}).get("id") == card_id)), None)
-    can_auction = user_card and user_card.get("count", 0) > 0
+    count = user_card.get("count", 0) if user_card else 0
+    can_auction = count > 0
     text = (
         f"<b>{card.get('name')}</b>\n"
         f"Группа: <b>{card.get('group')}</b>\n"
         f"Альбом: <b>{card.get('album', '-')}</b>\n"
-        f"Редкость: <b>{card.get('rarity')}★</b>"
+        f"Редкость: <b>{card.get('rarity')}★</b>\n"
+        f"В наличии: <b>{count}</b>"
     )
     keyboard = []
     if can_auction:
         keyboard.append([InlineKeyboardButton("💸 Выложить на аукцион", callback_data=f"auction_{card_id}")])
+    # Кнопка сдачи дубликатов
+    if count > 1:
+        keyboard.append([InlineKeyboardButton(f"♻️ Сдать дубликат ({count-1})", callback_data=f"exchange_{card_id}")])
+    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="inventory")])
     overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
     if overlayed_path:
         with open(overlayed_path, "rb") as img_file:
-            await query.message.reply_photo(img_file, caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
+            await query.message.reply_photo(img_file, caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
         os.unlink(overlayed_path)
     elif card.get("image_url"):
-        await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
+        await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
-        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
+        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def auction_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -742,6 +747,55 @@ async def group_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
             pb.update_user_stars_and_pity(pb_user["id"], new_stars, pb_user.get("pity_legendary", 0), pb_user.get("pity_void", 0))
             await update.message.reply_text(f"🎉 @{update.effective_user.username or update.effective_user.first_name}, вы получили 25 звёзд за активность в чате!")
 
+# --- Новый callback для обмена дубликатов ---
+async def exchange_duplicate_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    card_id = query.data.replace("exchange_", "")
+    user_id = query.from_user.id
+    user = pb.get_user_by_telegram_id(user_id)
+    user_cards = pb.get_user_inventory(user["id"])
+    user_card = next((c for c in user_cards if c.get("card_id") == card_id or (c.get("expand", {}).get("card_id", {}).get("id") == card_id)), None)
+    count = user_card.get("count", 0) if user_card else 0
+    card = user_card.get("expand", {}).get("card_id", {}) if user_card else {}
+    rarity = card.get("rarity", 1)
+    # Баланс: 1★=1, 2★=3, 3★=10, 4★=30, 5★=100, 6★=250
+    reward_map = {1: 1, 2: 3, 3: 10, 4: 30, 5: 100, 6: 250}
+    reward = reward_map.get(rarity, 1)
+    if count <= 1:
+        await query.edit_message_text("У вас нет дубликатов этой карточки.")
+        return
+    # Подтверждение
+    text = f"Вы уверены, что хотите сдать 1 дубликат <b>{card.get('name', '?')}</b> ({rarity}★) за <b>{reward} звёзд</b>?\nОстанется: {count-1}"
+    keyboard = [
+        [InlineKeyboardButton("✅ Да, сдать", callback_data=f"exchange_confirm_{card_id}"), InlineKeyboardButton("❌ Отмена", callback_data=f"showcard_{card_id}")]
+    ]
+    await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+
+# --- Callback подтверждения обмена ---
+async def exchange_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    card_id = query.data.replace("exchange_confirm_", "")
+    user_id = query.from_user.id
+    user = pb.get_user_by_telegram_id(user_id)
+    user_cards = pb.get_user_inventory(user["id"])
+    user_card = next((c for c in user_cards if c.get("card_id") == card_id or (c.get("expand", {}).get("card_id", {}).get("id") == card_id)), None)
+    count = user_card.get("count", 0) if user_card else 0
+    card = user_card.get("expand", {}).get("card_id", {}) if user_card else {}
+    rarity = card.get("rarity", 1)
+    reward_map = {1: 1, 2: 3, 3: 10, 4: 30, 5: 100, 6: 250}
+    reward = reward_map.get(rarity, 1)
+    if count <= 1:
+        await query.edit_message_text("У вас нет дубликатов этой карточки.")
+        return
+    # Уменьшаем count
+    url = f"{pb.base_url}/collections/user_cards/records/{user_card['id']}"
+    httpx.patch(url, headers=pb.headers, json={"count": count-1})
+    # Начисляем звёзды
+    pb.update_user_stars_and_pity(user["id"], user.get("stars", 0) + reward, user.get("pity_legendary", 0), user.get("pity_void", 0))
+    await query.edit_message_text(f"♻️ Дубликат сдан! Вы получили <b>{reward} звёзд</b>. Осталось: {count-1}", parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -781,6 +835,8 @@ def main():
     app.add_handler(auction_conv)
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
     app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
+    app.add_handler(CallbackQueryHandler(exchange_duplicate_callback, pattern="^exchange_"))
+    app.add_handler(CallbackQueryHandler(exchange_confirm_callback, pattern="^exchange_confirm_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
     app.run_polling()
