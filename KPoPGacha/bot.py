@@ -467,7 +467,6 @@ def main():
     app.add_handler(CommandHandler("leaderboard", leaderboard))
     app.add_handler(CommandHandler("settings", settings))
     app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CallbackQueryHandler(menu_callback))
     addcard_conv = ConversationHandler(
         entry_points=[CommandHandler("addcard", addcard_start)],
         states={
@@ -480,6 +479,7 @@ def main():
         fallbacks=[CommandHandler("cancel", addcard_cancel)],
     )
     app.add_handler(addcard_conv)
+    app.add_handler(CallbackQueryHandler(menu_callback))
     app.run_polling()
 
 if __name__ == "__main__":
