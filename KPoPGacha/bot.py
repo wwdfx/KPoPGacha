@@ -26,7 +26,7 @@ RARITY_VALUES = [rarity for rarity, _ in RARITY_CHANCES]
 PULL_COST = 10  # Стоимость одной попытки в звёздах
 PULL10_COST = 90  # Стоимость 10 попыток (скидка)
 
-ADD_NAME, ADD_GROUP, ADD_RARITY, ADD_IMAGE, ADD_POSITION, ADD_STATS, ADD_CONFIRM = range(7)
+ADD_NAME, ADD_GROUP, ADD_RARITY, ADD_IMAGE, ADD_CONFIRM = range(5)
 
 addcard_data = {}
 
@@ -419,40 +419,31 @@ async def addcard_rarity(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def addcard_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     addcard_data[user_id]["image_url"] = update.message.text.strip()
-    await update.message.reply_text("Введите <b>позицию</b> (например, 'vocal', 'rap', 'center' или оставьте пустым):", parse_mode="HTML")
-    return ADD_POSITION
-
-async def addcard_position(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    addcard_data[user_id]["position"] = update.message.text.strip()
-    await update.message.reply_text("Введите <b>характеристики</b> (JSON или просто текст, можно оставить пустым):", parse_mode="HTML")
-    return ADD_STATS
-
-async def addcard_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    stats = update.message.text.strip()
-    addcard_data[user_id]["stats"] = stats if stats else None
     card = addcard_data[user_id]
     text = (
         f"<b>Проверьте данные:</b>\n"
-        f"Имя: {card['name']}\nГруппа: {card['group']}\nРедкость: {card['rarity']}\nURL: {card['image_url']}\nПозиция: {card['position']}\nХарактеристики: {card['stats']}\n\nДобавить эту карточку? (да/нет)"
+        f"Имя: {card['name']}\nГруппа: {card['group']}\nРедкость: {card['rarity']}\nURL: {card['image_url']}\n\nДобавить эту карточку?"
     )
-    await update.message.reply_text(text, parse_mode="HTML")
+    keyboard = [
+        [InlineKeyboardButton("✅ Да", callback_data="addcard_yes"), InlineKeyboardButton("❌ Нет", callback_data="addcard_no")]
+    ]
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     return ADD_CONFIRM
 
 async def addcard_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    answer = update.message.text.strip().lower()
-    if answer not in ("да", "yes", "+"):
-        await update.message.reply_text("❌ Отмена добавления.")
+    query = update.callback_query
+    user_id = query.from_user.id
+    await query.answer()
+    if query.data == "addcard_no":
+        await query.edit_message_text("❌ Добавление карточки отменено.")
         addcard_data.pop(user_id, None)
         return ConversationHandler.END
     card = addcard_data[user_id]
     try:
-        pb.add_card(card["name"], card["group"], card["rarity"], card["image_url"], card["position"], card["stats"])
-        await update.message.reply_text("✅ Карточка добавлена в базу!")
+        pb.add_card(card["name"], card["group"], card["rarity"], card["image_url"], "", None)
+        await query.edit_message_text("✅ Карточка добавлена в базу!")
     except Exception as e:
-        await update.message.reply_text(f"Ошибка: {e}")
+        await query.edit_message_text(f"Ошибка: {e}")
     addcard_data.pop(user_id, None)
     return ConversationHandler.END
 
@@ -484,9 +475,7 @@ def main():
             ADD_GROUP: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_group)],
             ADD_RARITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_rarity)],
             ADD_IMAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_image)],
-            ADD_POSITION: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_position)],
-            ADD_STATS: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_stats)],
-            ADD_CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_confirm)],
+            ADD_CONFIRM: [CallbackQueryHandler(addcard_confirm, pattern="^addcard_(yes|no)$")],
         },
         fallbacks=[CommandHandler("cancel", addcard_cancel)],
     )

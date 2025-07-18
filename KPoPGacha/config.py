@@ -5,4 +5,4 @@ TELEGRAM_BOT_TOKEN = "7950056969:AAHHc5lh5tRZgDYhMY0fdlF7DQ4mq1N_QbE"  # Вст�
 POCKETBASE_BOT_EMAIL = "botuser@bot.com"
 POCKETBASE_BOT_PASSWORD = "272421a212427"
 
-ADMIN_IDS = [839731670, 6758221412]  # Замените на свой Telegram ID (или список ID) 
+ADMIN_IDS = [839731670, 6758221412, 7316965558]  # Замените на свой Telegram ID (или список ID) 
