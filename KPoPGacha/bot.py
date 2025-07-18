@@ -36,7 +36,9 @@ addcard_data = {}
 
 message_counters = defaultdict(int)
 
-def get_reply_target(update):
+def get_reply_target(update, prefer_edit=False):
+    if prefer_edit and hasattr(update, 'callback_query') and update.callback_query and update.callback_query.message:
+        return update.callback_query.message
     if hasattr(update, 'message') and update.message:
         return update.message
     elif hasattr(update, 'callback_query') and update.callback_query and update.callback_query.message:
@@ -400,9 +402,16 @@ async def auction_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def auctions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
+    target = get_reply_target(update, prefer_edit=prefer_edit)
     auctions = pb.get_active_auctions()
     if not auctions:
-        await update.message.reply_text("Нет активных лотов.")
+        keyboard = [[InlineKeyboardButton("🎴 Инвентарь", callback_data="inventory")]]
+        text = "Нет активных лотов. Вы можете выложить свою карточку на аукцион через инвентарь!"
+        if prefer_edit:
+            await target.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await target.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
         return
     keyboard = []
     for lot in auctions:
@@ -410,7 +419,11 @@ async def auctions(update: Update, context: ContextTypes.DEFAULT_TYPE):
         seller = lot.get("expand", {}).get("seller_id", {})
         btn_text = f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ за {lot.get('price')}⭐ от {seller.get('name', '-')[:12]}"
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"buyauction_{lot['id']}")])
-    await update.message.reply_text("<b>Аукцион:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    text = "<b>Аукцион:</b>"
+    if prefer_edit:
+        await target.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    else:
+        await target.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def buyauction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -530,6 +543,7 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await target.reply_text("<b>⚙️ Настройки профиля будут доступны в будущих обновлениях.</b>", parse_mode="HTML")
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
     keyboard = [
         [InlineKeyboardButton("👤 Профиль", callback_data="profile"), InlineKeyboardButton("🎴 Инвентарь", callback_data="inventory")],
         [InlineKeyboardButton("🎲 Гача (1)", callback_data="pull"), InlineKeyboardButton("🔟 Гача (10)", callback_data="pull10")],
@@ -539,9 +553,12 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⚙️ Настройки", callback_data="settings")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    target = get_reply_target(update)
+    target = get_reply_target(update, prefer_edit=prefer_edit)
     if target:
-        await target.reply_text("<b>Главное меню:</b>", reply_markup=reply_markup, parse_mode="HTML")
+        if prefer_edit:
+            await target.edit_text("<b>Главное меню:</b>", reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            await target.reply_text("<b>Главное меню:</b>", reply_markup=reply_markup, parse_mode="HTML")
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
