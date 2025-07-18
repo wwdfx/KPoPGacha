@@ -801,7 +801,17 @@ async def exchange_confirm_callback(update: Update, context: ContextTypes.DEFAUL
     reward_map = {1: 1, 2: 3, 3: 10, 4: 30, 5: 100, 6: 250}
     reward = reward_map.get(rarity, 1)
     if count <= 1:
-        await query.edit_message_text("У вас нет дубликатов этой карточки.")
+        text = "У вас нет дубликатов этой карточки."
+        try:
+            if query.message.photo:
+                await query.message.edit_caption(text)
+            else:
+                await query.edit_message_text(text)
+        except Exception as e:
+            try:
+                await query.message.reply_text(text)
+            except Exception as e2:
+                print(f"[exchange_confirm_callback] Ошибка: {e} | {e2}")
         return
     url = f"{pb.base_url}/collections/user_cards/records/{user_card['id']}"
     httpx.patch(url, headers=pb.headers, json={"count": count-1})
@@ -809,15 +819,55 @@ async def exchange_confirm_callback(update: Update, context: ContextTypes.DEFAUL
     text = f"♻️ Дубликат сдан! Вы получили <b>{reward} звёзд</b>. Осталось: {count-1}"
     try:
         if query.message.photo:
-            await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+            await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
         else:
-            await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+            await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
     except Exception as e:
         try:
-            await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+            await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
         except Exception as e2:
             print(f"[exchange_confirm_callback] Ошибка: {e} | {e2}")
-            await query.message.reply_text("Дубликат сдан!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+            await query.message.reply_text("Дубликат сдан!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
+
+# --- Новый callback для обновления карточки после обмена ---
+async def showcard_refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # То же, что showcard_callback, но всегда делает свежий запрос к базе
+    query = update.callback_query
+    await query.answer()
+    card_id = query.data.replace("showcard_refresh_", "")
+    url = f"{pb.base_url}/collections/cards/records/{card_id}"
+    resp = requests.get(url, headers=pb.headers)
+    if resp.status_code != 200:
+        await query.edit_message_text("Карточка не найдена.")
+        return
+    card = resp.json()
+    user_id = query.from_user.id
+    user_cards = pb.get_user_inventory(pb.get_user_by_telegram_id(user_id)["id"])
+    user_card = next((c for c in user_cards if c.get("card_id") == card_id or (c.get("expand", {}).get("card_id", {}).get("id") == card_id)), None)
+    count = user_card.get("count", 0) if user_card else 0
+    can_auction = count > 0
+    text = (
+        f"<b>{card.get('name')}</b>\n"
+        f"Группа: <b>{card.get('group')}</b>\n"
+        f"Альбом: <b>{card.get('album', '-')}</b>\n"
+        f"Редкость: <b>{card.get('rarity')}★</b>\n"
+        f"В наличии: <b>{count}</b>"
+    )
+    keyboard = []
+    if can_auction:
+        keyboard.append([InlineKeyboardButton("💸 Выложить на аукцион", callback_data=f"auction_{card_id}")])
+    if count > 1:
+        keyboard.append([InlineKeyboardButton(f"♻️ Сдать дубликат ({count-1})", callback_data=f"exchange_{card_id}")])
+    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="inventory")])
+    overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
+    if overlayed_path:
+        with open(overlayed_path, "rb") as img_file:
+            await query.message.reply_photo(img_file, caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        os.unlink(overlayed_path)
+    elif card.get("image_url"):
+        await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -860,6 +910,7 @@ def main():
     app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
     app.add_handler(CallbackQueryHandler(exchange_duplicate_callback, pattern="^exchange_"))
     app.add_handler(CallbackQueryHandler(exchange_confirm_callback, pattern="^exchange_confirm_"))
+    app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
     app.run_polling()
