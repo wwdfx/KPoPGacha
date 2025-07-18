@@ -199,15 +199,14 @@ class PBClient:
         resp.raise_for_status()
         return resp.json().get("items", [])
 
-    def add_card(self, name, group, rarity, image_url, position, stats):
+    def add_card(self, name, group, album, rarity, image_url):
         url = f"{self.base_url}/collections/cards/records"
         data = {
             "name": name,
             "group": group,
+            "album": album,
             "rarity": rarity,
             "image_url": image_url,
-            "position": position,
-            "stats": stats,
         }
         resp = httpx.post(url, headers=self.headers, json=data)
         resp.raise_for_status()

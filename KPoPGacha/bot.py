@@ -26,7 +26,7 @@ RARITY_VALUES = [rarity for rarity, _ in RARITY_CHANCES]
 PULL_COST = 10  # Стоимость одной попытки в звёздах
 PULL10_COST = 90  # Стоимость 10 попыток (скидка)
 
-ADD_NAME, ADD_GROUP, ADD_RARITY, ADD_IMAGE, ADD_CONFIRM = range(5)
+ADD_NAME, ADD_GROUP, ADD_ALBUM, ADD_RARITY, ADD_IMAGE, ADD_CONFIRM = range(6)
 
 addcard_data = {}
 
@@ -400,6 +400,12 @@ async def addcard_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def addcard_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     addcard_data[user_id]["group"] = update.message.text.strip()
+    await update.message.reply_text("Введите <b>название альбома</b>:", parse_mode="HTML")
+    return ADD_ALBUM
+
+async def addcard_album(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    addcard_data[user_id]["album"] = update.message.text.strip()
     await update.message.reply_text("Введите <b>редкость</b> (1-6):", parse_mode="HTML")
     return ADD_RARITY
 
@@ -422,7 +428,7 @@ async def addcard_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     card = addcard_data[user_id]
     text = (
         f"<b>Проверьте данные:</b>\n"
-        f"Имя: {card['name']}\nГруппа: {card['group']}\nРедкость: {card['rarity']}\nURL: {card['image_url']}\n\nДобавить эту карточку?"
+        f"Имя: {card['name']}\nГруппа: {card['group']}\nАльбом: {card['album']}\nРедкость: {card['rarity']}\nURL: {card['image_url']}\n\nДобавить эту карточку?"
     )
     keyboard = [
         [InlineKeyboardButton("✅ Да", callback_data="addcard_yes"), InlineKeyboardButton("❌ Нет", callback_data="addcard_no")]
@@ -440,7 +446,7 @@ async def addcard_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
     card = addcard_data[user_id]
     try:
-        pb.add_card(card["name"], card["group"], card["rarity"], card["image_url"], "", None)
+        pb.add_card(card["name"], card["group"], card["album"], card["rarity"], card["image_url"])
         await query.edit_message_text("✅ Карточка добавлена в базу!")
     except Exception as e:
         await query.edit_message_text(f"Ошибка: {e}")
@@ -472,6 +478,7 @@ def main():
         states={
             ADD_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_name)],
             ADD_GROUP: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_group)],
+            ADD_ALBUM: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_album)],
             ADD_RARITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_rarity)],
             ADD_IMAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_image)],
             ADD_CONFIRM: [CallbackQueryHandler(addcard_confirm, pattern="^addcard_(yes|no)$")],
