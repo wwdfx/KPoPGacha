@@ -3,6 +3,10 @@ from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQuer
 from pb_client import PBClient
 from config import TELEGRAM_BOT_TOKEN
 import random
+import os
+import tempfile
+import requests
+from PIL import Image
 
 pb = PBClient()
 
@@ -89,6 +93,30 @@ def choose_rarity(pity_legendary, pity_void):
         return 5
     return random.choices(RARITY_VALUES, weights=RARITY_WEIGHTS, k=1)[0]
 
+def apply_overlay(card_image_url, rarity):
+    if rarity not in (3, 4, 5, 6):
+        return None  # Эффект только для 3★ и выше
+    overlay_path = os.path.join(os.path.dirname(__file__), "overlays", f"overlay_{rarity}.png")
+    if not os.path.exists(overlay_path):
+        return None  # Нет оверлея для этой редкости
+    # Скачиваем картинку карточки
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_card:
+        resp = requests.get(card_image_url)
+        temp_card.write(resp.content)
+        temp_card_path = temp_card.name
+    # Открываем изображения
+    card_img = Image.open(temp_card_path).convert("RGBA")
+    overlay_img = Image.open(overlay_path).convert("RGBA")
+    # Масштабируем оверлей под размер карточки
+    overlay_img = overlay_img.resize(card_img.size, Image.ANTIALIAS)
+    # Накладываем оверлей
+    combined = Image.alpha_composite(card_img, overlay_img)
+    # Сохраняем результат
+    out_path = tempfile.mktemp(suffix=".png")
+    combined.save(out_path, format="PNG")
+    os.unlink(temp_card_path)
+    return out_path
+
 async def pull_once(user, pb_user, update, pull_type="single"):
     target = get_reply_target(update)
     pity_legendary = pb_user.get("pity_legendary", 0)
@@ -141,7 +169,12 @@ async def pull_once(user, pb_user, update, pull_type="single"):
         rank = pb.get_rank(updated_user.get('level', 1))
         text += f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>"
     if card.get("image_url"):
-        if target:
+        overlayed_path = apply_overlay(card["image_url"], card["rarity"])
+        if overlayed_path:
+            with open(overlayed_path, "rb") as img_file:
+                await target.reply_photo(img_file, caption=text, parse_mode="HTML")
+            os.unlink(overlayed_path)
+        else:
             await target.reply_photo(card["image_url"], caption=text, parse_mode="HTML")
     else:
         if target:
