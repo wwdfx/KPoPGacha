@@ -9,6 +9,7 @@ import requests
 from PIL import Image
 from telegram.ext import ConversationHandler, MessageHandler, filters
 from collections import defaultdict
+import httpx
 
 pb = PBClient()
 
@@ -28,6 +29,8 @@ PULL_COST = 10  # Стоимость одной попытки в звёздах
 PULL10_COST = 90  # Стоимость 10 попыток (скидка)
 
 ADD_NAME, ADD_GROUP, ADD_ALBUM, ADD_RARITY, ADD_IMAGE, ADD_CONFIRM = range(6)
+AUCTION_PRICE, AUCTION_DURATION, AUCTION_CONFIRM = range(10, 13)
+auction_data = {}
 
 addcard_data = {}
 
@@ -301,28 +304,132 @@ async def showcard_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     card_id = query.data.replace("showcard_", "")
-    # Получаем карточку из PB
     url = f"{pb.base_url}/collections/cards/records/{card_id}"
     resp = requests.get(url, headers=pb.headers)
     if resp.status_code != 200:
         await query.edit_message_text("Карточка не найдена.")
         return
     card = resp.json()
+    user_id = query.from_user.id
+    # Проверяем, есть ли карточка у пользователя (count > 0)
+    user_cards = pb.get_user_inventory(pb.get_user_by_telegram_id(user_id)["id"])
+    user_card = next((c for c in user_cards if c.get("card_id") == card_id or (c.get("expand", {}).get("card_id", {}).get("id") == card_id)), None)
+    can_auction = user_card and user_card.get("count", 0) > 0
     text = (
         f"<b>{card.get('name')}</b>\n"
         f"Группа: <b>{card.get('group')}</b>\n"
         f"Альбом: <b>{card.get('album', '-')}</b>\n"
         f"Редкость: <b>{card.get('rarity')}★</b>"
     )
+    keyboard = []
+    if can_auction:
+        keyboard.append([InlineKeyboardButton("💸 Выложить на аукцион", callback_data=f"auction_{card_id}")])
     overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
     if overlayed_path:
         with open(overlayed_path, "rb") as img_file:
-            await query.message.reply_photo(img_file, caption=text, parse_mode="HTML")
+            await query.message.reply_photo(img_file, caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
         os.unlink(overlayed_path)
     elif card.get("image_url"):
-        await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML")
+        await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
     else:
-        await query.message.reply_text(text, parse_mode="HTML")
+        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
+
+async def auction_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    card_id = query.data.replace("auction_", "")
+    user_id = query.from_user.id
+    auction_data[user_id] = {"card_id": card_id}
+    await query.message.reply_text("Введите цену в звёздах:")
+    return AUCTION_PRICE
+
+async def auction_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    try:
+        price = int(update.message.text.strip())
+        if price < 1:
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("Введите положительное число!")
+        return AUCTION_PRICE
+    auction_data[user_id]["price"] = price
+    await update.message.reply_text("На сколько часов выставить аукцион? (12, 24 или 48)")
+    return AUCTION_DURATION
+
+async def auction_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    try:
+        hours = int(update.message.text.strip())
+        if hours not in (12, 24, 48):
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("Только 12, 24 или 48!")
+        return AUCTION_DURATION
+    auction_data[user_id]["duration"] = hours
+    card_id = auction_data[user_id]["card_id"]
+    card = pb.get_auction(card_id) if hasattr(pb, 'get_auction') else None
+    text = f"Выставить карточку на аукцион за {auction_data[user_id]['price']} звёзд на {hours} ч?"
+    keyboard = [[InlineKeyboardButton("✅ Да", callback_data="auction_yes"), InlineKeyboardButton("❌ Нет", callback_data="auction_no")]]
+    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    return AUCTION_CONFIRM
+
+async def auction_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    await query.answer()
+    if query.data == "auction_no":
+        await query.edit_message_text("❌ Выставление отменено.")
+        auction_data.pop(user_id, None)
+        return ConversationHandler.END
+    data = auction_data[user_id]
+    pb_user = pb.get_user_by_telegram_id(user_id)
+    # Уменьшаем count карточки у пользователя
+    user_cards = pb.get_user_inventory(pb_user["id"])
+    user_card = next((c for c in user_cards if c.get("card_id") == data["card_id"] or (c.get("expand", {}).get("card_id", {}).get("id") == data["card_id"])), None)
+    if user_card and user_card.get("count", 0) > 0:
+        url = f"{pb.base_url}/collections/user_cards/records/{user_card['id']}"
+        new_count = user_card.get("count", 1) - 1
+        httpx.patch(url, headers=pb.headers, json={"count": new_count})
+    pb.create_auction(data["card_id"], pb_user["id"], data["price"], data["duration"])
+    await query.edit_message_text("✅ Карточка выставлена на аукцион!")
+    auction_data.pop(user_id, None)
+    return ConversationHandler.END
+
+async def auctions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    auctions = pb.get_active_auctions()
+    if not auctions:
+        await update.message.reply_text("Нет активных лотов.")
+        return
+    keyboard = []
+    for lot in auctions:
+        card = lot.get("expand", {}).get("card_id", {})
+        seller = lot.get("expand", {}).get("seller_id", {})
+        btn_text = f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ за {lot.get('price')}⭐ от {seller.get('name', '-')[:12]}"
+        keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"buyauction_{lot['id']}")])
+    await update.message.reply_text("<b>Аукцион:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+async def buyauction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    lot_id = query.data.replace("buyauction_", "")
+    lot = pb.get_auction(lot_id)
+    card = lot.get("expand", {}).get("card_id", {})
+    price = lot.get("price")
+    buyer_id = query.from_user.id
+    pb_buyer = pb.get_user_by_telegram_id(buyer_id)
+    if pb_buyer.get("stars", 0) < price:
+        await query.edit_message_text("Недостаточно звёзд!")
+        return
+    # Списываем звёзды у покупателя, начисляем продавцу, добавляем карточку покупателю
+    pb.update_user_stars_and_pity(pb_buyer["id"], pb_buyer["stars"] - price, pb_buyer.get("pity_legendary", 0), pb_buyer.get("pity_void", 0))
+    seller = lot.get("expand", {}).get("seller_id", {})
+    if seller:
+        pb_seller = pb.get_user_by_telegram_id(seller.get("telegram_id"))
+        if pb_seller:
+            pb.update_user_stars_and_pity(pb_seller["id"], pb_seller.get("stars", 0) + price, pb_seller.get("pity_legendary", 0), pb_seller.get("pity_void", 0))
+    pb.add_card_to_user(pb_buyer["id"], card["id"])
+    pb.finish_auction(lot_id, status="sold", winner_id=pb_buyer["id"])
+    await query.edit_message_text(f"✅ Покупка успешна! Карточка {card.get('name')} теперь ваша.")
 
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
@@ -443,6 +550,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await leaderboard(update, context)
     elif data == "settings":
         await settings(update, context)
+    elif data == "auctions":
+        await auctions(update, context)
     else:
         await query.edit_message_text("Неизвестная команда.")
 
@@ -551,6 +660,7 @@ def main():
     app.add_handler(CommandHandler("leaderboard", leaderboard))
     app.add_handler(CommandHandler("settings", settings))
     app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("auctions", auctions))
     addcard_conv = ConversationHandler(
         entry_points=[CommandHandler("addcard", addcard_start)],
         states={
@@ -563,8 +673,18 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", addcard_cancel)],
     )
-    app.add_handler(addcard_conv)
+    auction_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(auction_start_callback, pattern="^auction_")],
+        states={
+            AUCTION_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, auction_price)],
+            AUCTION_DURATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, auction_duration)],
+            AUCTION_CONFIRM: [CallbackQueryHandler(auction_confirm, pattern="^auction_(yes|no)$")],
+        },
+        fallbacks=[CommandHandler("cancel", addcard_cancel)],
+    )
+    app.add_handler(auction_conv)
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
+    app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
     app.run_polling()

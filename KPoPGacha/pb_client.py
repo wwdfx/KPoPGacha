@@ -210,4 +210,43 @@ class PBClient:
         }
         resp = httpx.post(url, headers=self.headers, json=data)
         resp.raise_for_status()
+        return resp.json()
+
+    def create_auction(self, card_id, seller_id, price, duration_hours):
+        from datetime import datetime, timedelta, timezone
+        url = f"{self.base_url}/collections/auctions/records"
+        now = datetime.now(timezone.utc)
+        end_time = now + timedelta(hours=duration_hours)
+        data = {
+            "card_id": card_id,
+            "seller_id": seller_id,
+            "price": price,
+            "start_time": now.isoformat(),
+            "end_time": end_time.isoformat(),
+            "status": "active"
+        }
+        resp = httpx.post(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_active_auctions(self):
+        url = f"{self.base_url}/collections/auctions/records"
+        params = {"filter": 'status="active"', "expand": "card_id,seller_id", "perPage": 50}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        return resp.json().get("items", [])
+
+    def finish_auction(self, auction_id, status="sold", winner_id=None):
+        url = f"{self.base_url}/collections/auctions/records/{auction_id}"
+        data = {"status": status}
+        if winner_id:
+            data["winner_id"] = winner_id
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_auction(self, auction_id):
+        url = f"{self.base_url}/collections/auctions/records/{auction_id}?expand=card_id,seller_id"
+        resp = httpx.get(url, headers=self.headers)
+        resp.raise_for_status()
         return resp.json() 
