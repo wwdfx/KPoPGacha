@@ -624,7 +624,10 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-    # Просто вызываем нужную функцию
+    # Добавлено: обработка кнопки 'Назад' (data == 'menu')
+    if data == "menu":
+        await menu(update, context)
+        return
     if data == "profile":
         await profile(update, context)
     elif data == "inventory":
