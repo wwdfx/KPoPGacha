@@ -431,6 +431,17 @@ async def buyauction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         pb_seller = pb.get_user_by_telegram_id(seller.get("telegram_id"))
         if pb_seller:
             pb.update_user_stars_and_pity(pb_seller["id"], pb_seller.get("stars", 0) + price, pb_seller.get("pity_legendary", 0), pb_seller.get("pity_void", 0))
+            # Уведомление продавцу
+            seller_tg_id = seller.get("telegram_id")
+            if seller_tg_id:
+                try:
+                    await context.bot.send_message(
+                        chat_id=int(seller_tg_id),
+                        text=f"💸 Ваша карточка <b>{card.get('name')}</b> была куплена за <b>{price} звёзд</b>!",
+                        parse_mode="HTML"
+                    )
+                except Exception:
+                    pass
     pb.add_card_to_user(pb_buyer["id"], card["id"])
     pb.finish_auction(lot_id, status="sold", winner_id=pb_buyer["id"])
     await query.edit_message_text(f"✅ Покупка успешна! Карточка {card.get('name')} теперь ваша.")
@@ -524,6 +535,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎲 Гача (1)", callback_data="pull"), InlineKeyboardButton("🔟 Гача (10)", callback_data="pull10")],
         [InlineKeyboardButton("🎁 Ежедневка", callback_data="daily"), InlineKeyboardButton("🕓 История", callback_data="history")],
         [InlineKeyboardButton("🎯 Pity", callback_data="pity"), InlineKeyboardButton("🏆 Лидерборд", callback_data="leaderboard")],
+        [InlineKeyboardButton("🛒 Аукцион", callback_data="auctions")],
         [InlineKeyboardButton("⚙️ Настройки", callback_data="settings")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
