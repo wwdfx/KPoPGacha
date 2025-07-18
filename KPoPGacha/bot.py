@@ -10,7 +10,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         pb.create_user(user.id, user.full_name)
-        await update.message.reply_text(f"Добро пожаловать, {user.full_name}! Ваш профиль создан.")
+        await update.message.reply_text(f"Добро пожаловать, {user.full_name}! Ваш игровой профиль создан.")
     else:
         await update.message.reply_text(f"С возвращением, {user.full_name}!")
 
@@ -23,7 +23,14 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pb_user:
         await update.message.reply_text("Профиль не найден. Используйте /start.")
         return
-    text = f"Имя: {pb_user['name']}\nУровень: {pb_user.get('level', 1)}\nОпыт: {pb_user.get('exp', 0)}\nЗвёзды: {pb_user.get('stars', 0)}"
+    text = (
+        f"Имя: {pb_user.get('name', '')}\n"
+        f"Уровень: {pb_user.get('level', 1)}\n"
+        f"Опыт: {pb_user.get('exp', 0)}\n"
+        f"Звёзды: {pb_user.get('stars', 0)}\n"
+        f"Pity Legendary: {pb_user.get('pity_legendary', 0)}\n"
+        f"Pity Void: {pb_user.get('pity_void', 0)}"
+    )
     await update.message.reply_text(text)
 
 def main():
