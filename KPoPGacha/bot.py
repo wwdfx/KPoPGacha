@@ -108,7 +108,7 @@ def apply_overlay(card_image_url, rarity):
     card_img = Image.open(temp_card_path).convert("RGBA")
     overlay_img = Image.open(overlay_path).convert("RGBA")
     # Масштабируем оверлей под размер карточки
-    overlay_img = overlay_img.resize(card_img.size, Image.ANTIALIAS)
+    overlay_img = overlay_img.resize(card_img.size, Image.Resampling.LANCZOS)
     # Накладываем оверлей
     combined = Image.alpha_composite(card_img, overlay_img)
     # Сохраняем результат
