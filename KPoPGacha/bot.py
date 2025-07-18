@@ -759,24 +759,31 @@ async def exchange_duplicate_callback(update: Update, context: ContextTypes.DEFA
     count = user_card.get("count", 0) if user_card else 0
     card = user_card.get("expand", {}).get("card_id", {}) if user_card else {}
     rarity = card.get("rarity", 1)
-    # Баланс: 1★=1, 2★=3, 3★=10, 4★=30, 5★=100, 6★=250
     reward_map = {1: 1, 2: 3, 3: 10, 4: 30, 5: 100, 6: 250}
     reward = reward_map.get(rarity, 1)
     if count <= 1:
-        await query.edit_message_text("У вас нет дубликатов этой карточки.")
+        text = "У вас нет дубликатов этой карточки."
+        try:
+            if query.message.photo:
+                await query.message.edit_caption(text)
+            else:
+                await query.edit_message_text(text)
+        except Exception as e:
+            try:
+                await query.message.reply_text(text)
+            except Exception as e2:
+                print(f"[exchange_duplicate_callback] Ошибка: {e} | {e2}")
         return
     text = f"Вы уверены, что хотите сдать 1 дубликат <b>{card.get('name', '?')}</b> ({rarity}★) за <b>{reward} звёзд</b>?\nОстанется: {count-1}"
     keyboard = [
         [InlineKeyboardButton("✅ Да, сдать", callback_data=f"exchange_confirm_{card_id}"), InlineKeyboardButton("❌ Отмена", callback_data=f"showcard_{card_id}")]
     ]
-    # --- Фикс: если сообщение было фото, используем edit_caption ---
     try:
         if query.message.photo:
             await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
             await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     except Exception as e:
-        # fallback на короткое сообщение
         await query.edit_message_text("Сдать дубликат?", reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- Callback подтверждения обмена ---
