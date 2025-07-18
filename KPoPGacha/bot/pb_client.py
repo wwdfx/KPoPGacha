@@ -1,7 +1,7 @@
 import os
 import requests
 from dotenv import load_dotenv
-from bot.config import POCKETBASE_URL, POCKETBASE_USER_EMAIL, POCKETBASE_USER_PASSWORD
+from bot.config import POCKETBASE_URL, POCKETBASE_ADMIN_EMAIL, POCKETBASE_ADMIN_PASSWORD
 
 load_dotenv()
 
@@ -10,10 +10,10 @@ class PocketbaseClient:
         self.base_url = POCKETBASE_URL.rstrip('/')
         self.session = requests.Session()
         self.token = None
-        self.login_bot_user(POCKETBASE_USER_EMAIL, POCKETBASE_USER_PASSWORD)
+        self.login_admin(POCKETBASE_ADMIN_EMAIL, POCKETBASE_ADMIN_PASSWORD)
 
-    def login_bot_user(self, email, password):
-        url = f"{self.base_url}/api/collections/users/auth-with-password"
+    def login_admin(self, email, password):
+        url = f"{self.base_url}/api/admins/auth-with-password"
         resp = self.session.post(url, json={"identity": email, "password": password})
         resp.raise_for_status()
         data = resp.json()
