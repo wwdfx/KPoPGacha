@@ -10,6 +10,7 @@ from PIL import Image
 from telegram.ext import ConversationHandler, MessageHandler, filters
 from collections import defaultdict
 import httpx
+import asyncio
 
 pb = PBClient()
 
@@ -815,6 +816,7 @@ async def exchange_confirm_callback(update: Update, context: ContextTypes.DEFAUL
         return
     url = f"{pb.base_url}/collections/user_cards/records/{user_card['id']}"
     httpx.patch(url, headers=pb.headers, json={"count": count-1})
+    await asyncio.sleep(0.3)  # Дать Pocketbase время обновить данные
     pb.update_user_stars_and_pity(user["id"], user.get("stars", 0) + reward, user.get("pity_legendary", 0), user.get("pity_void", 0))
     text = f"♻️ Дубликат сдан! Вы получили <b>{reward} звёзд</b>. Осталось: {count-1}"
     try:
