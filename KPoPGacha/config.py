@@ -2,5 +2,5 @@ POCKETBASE_URL = "http://127.0.0.1:8092/api"  # Замените на ваш а�
 # POCKETBASE_ADMIN_TOKEN = "<ваш_токен_админа>"  # Вставьте токен администратора PB
 TELEGRAM_BOT_TOKEN = "7950056969:AAHHc5lh5tRZgDYhMY0fdlF7DQ4mq1N_QbE"  # Вставьте токен Telegram-бота
 
-POCKETBASE_BOT_EMAIL = "botuser@bot.com"
+POCKETBASE_BOT_EMAIL = "weikeduo.s@gmail.com"
 POCKETBASE_BOT_PASSWORD = "272421a212427" 
