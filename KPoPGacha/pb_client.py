@@ -77,7 +77,8 @@ class PBClient:
         if items:
             record = items[0]
             update_url = f"{self.base_url}/collections/user_cards/records/{record['id']}"
-            data = {"count": record.get("count", 1) + 1}
+            new_count = max(1, record.get("count", 0)) + 1
+            data = {"count": new_count}
             resp2 = httpx.patch(update_url, headers=self.headers, json=data)
             resp2.raise_for_status()
             return resp2.json()
