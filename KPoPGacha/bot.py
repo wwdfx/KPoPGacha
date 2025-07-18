@@ -128,7 +128,7 @@ async def pull_once(user, pb_user, update, pull_type="single"):
     pb.add_pull_history(user_id, card["id"], pull_type)
 
     # Опыт за карточку
-    base_exp = pb.RARITY_EXP.get(card["rarity"], 1)
+    base_exp = PBClient.RARITY_EXP.get(card["rarity"], 1)
     is_first = pb.is_first_card(user_id, card["id"])
     total_exp = base_exp + (base_exp // 2 if is_first else 0)
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
@@ -186,7 +186,7 @@ async def pull10_impl(user, pb_user, update):
             pity_void += 1
         pb.add_card_to_user(user_id, card["id"])
         pb.add_pull_history(user_id, card["id"], "multi")
-        base_exp = pb.RARITY_EXP.get(card["rarity"], 1)
+        base_exp = PBClient.RARITY_EXP.get(card["rarity"], 1)
         is_first = pb.is_first_card(user_id, card["id"])
         exp_gain = base_exp + (base_exp // 2 if is_first else 0)
         total_exp += exp_gain
