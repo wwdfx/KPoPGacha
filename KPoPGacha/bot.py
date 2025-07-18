@@ -1,12 +1,13 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 from pb_client import PBClient
-from config import TELEGRAM_BOT_TOKEN
+from config import TELEGRAM_BOT_TOKEN, ADMIN_IDS
 import random
 import os
 import tempfile
 import requests
 from PIL import Image
+from telegram.ext import ConversationHandler, MessageHandler, filters
 
 pb = PBClient()
 
@@ -24,6 +25,10 @@ RARITY_VALUES = [rarity for rarity, _ in RARITY_CHANCES]
 
 PULL_COST = 10  # Стоимость одной попытки в звёздах
 PULL10_COST = 90  # Стоимость 10 попыток (скидка)
+
+ADD_NAME, ADD_GROUP, ADD_RARITY, ADD_IMAGE, ADD_POSITION, ADD_STATS, ADD_CONFIRM = range(7)
+
+addcard_data = {}
 
 def get_reply_target(update):
     if hasattr(update, 'message') and update.message:
@@ -377,6 +382,86 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.edit_message_text("Неизвестная команда.")
 
+async def addcard_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Только для администратора.")
+        return ConversationHandler.END
+    addcard_data[user_id] = {}
+    await update.message.reply_text("Введите <b>имя карточки</b>:", parse_mode="HTML")
+    return ADD_NAME
+
+async def addcard_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    addcard_data[user_id]["name"] = update.message.text.strip()
+    await update.message.reply_text("Введите <b>группу</b>:", parse_mode="HTML")
+    return ADD_GROUP
+
+async def addcard_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    addcard_data[user_id]["group"] = update.message.text.strip()
+    await update.message.reply_text("Введите <b>редкость</b> (1-6):", parse_mode="HTML")
+    return ADD_RARITY
+
+async def addcard_rarity(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    try:
+        rarity = int(update.message.text.strip())
+        if rarity < 1 or rarity > 6:
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("Введите число от 1 до 6!")
+        return ADD_RARITY
+    addcard_data[user_id]["rarity"] = rarity
+    await update.message.reply_text("Вставьте <b>URL изображения</b>:", parse_mode="HTML")
+    return ADD_IMAGE
+
+async def addcard_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    addcard_data[user_id]["image_url"] = update.message.text.strip()
+    await update.message.reply_text("Введите <b>позицию</b> (например, 'vocal', 'rap', 'center' или оставьте пустым):", parse_mode="HTML")
+    return ADD_POSITION
+
+async def addcard_position(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    addcard_data[user_id]["position"] = update.message.text.strip()
+    await update.message.reply_text("Введите <b>характеристики</b> (JSON или просто текст, можно оставить пустым):", parse_mode="HTML")
+    return ADD_STATS
+
+async def addcard_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    stats = update.message.text.strip()
+    addcard_data[user_id]["stats"] = stats if stats else None
+    card = addcard_data[user_id]
+    text = (
+        f"<b>Проверьте данные:</b>\n"
+        f"Имя: {card['name']}\nГруппа: {card['group']}\nРедкость: {card['rarity']}\nURL: {card['image_url']}\nПозиция: {card['position']}\nХарактеристики: {card['stats']}\n\nДобавить эту карточку? (да/нет)"
+    )
+    await update.message.reply_text(text, parse_mode="HTML")
+    return ADD_CONFIRM
+
+async def addcard_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    answer = update.message.text.strip().lower()
+    if answer not in ("да", "yes", "+"):
+        await update.message.reply_text("❌ Отмена добавления.")
+        addcard_data.pop(user_id, None)
+        return ConversationHandler.END
+    card = addcard_data[user_id]
+    try:
+        pb.add_card(card["name"], card["group"], card["rarity"], card["image_url"], card["position"], card["stats"])
+        await update.message.reply_text("✅ Карточка добавлена в базу!")
+    except Exception as e:
+        await update.message.reply_text(f"Ошибка: {e}")
+    addcard_data.pop(user_id, None)
+    return ConversationHandler.END
+
+async def addcard_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    addcard_data.pop(user_id, None)
+    await update.message.reply_text("❌ Добавление карточки отменено.")
+    return ConversationHandler.END
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -392,6 +477,20 @@ def main():
     app.add_handler(CommandHandler("settings", settings))
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CallbackQueryHandler(menu_callback))
+    addcard_conv = ConversationHandler(
+        entry_points=[CommandHandler("addcard", addcard_start)],
+        states={
+            ADD_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_name)],
+            ADD_GROUP: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_group)],
+            ADD_RARITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_rarity)],
+            ADD_IMAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_image)],
+            ADD_POSITION: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_position)],
+            ADD_STATS: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_stats)],
+            ADD_CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcard_confirm)],
+        },
+        fallbacks=[CommandHandler("cancel", addcard_cancel)],
+    )
+    app.add_handler(addcard_conv)
     app.run_polling()
 
 if __name__ == "__main__":
