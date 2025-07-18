@@ -203,6 +203,35 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     updated_user, reward = pb.give_daily_reward(user_id, stars)
     await update.message.reply_text(f"Вы получили {reward} звёзд за ежедневный вход! До встречи завтра ✨")
 
+async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    if not pb_user:
+        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        return
+    user_id = pb_user["id"]
+    pulls = pb.get_pull_history(user_id, limit=10)
+    if not pulls:
+        await update.message.reply_text("История пуста.")
+        return
+    lines = []
+    for p in pulls:
+        card = p.get("expand", {}).get("card_id", {})
+        if not card:
+            continue
+        lines.append(f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ [{p.get('pull_type', '')}]")
+    await update.message.reply_text("Последние попытки:\n" + "\n".join(lines))
+
+async def pity(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    if not pb_user:
+        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        return
+    user_id = pb_user["id"]
+    pity_legendary, pity_void = pb.get_pity_status(user_id)
+    await update.message.reply_text(f"Pity Legendary: {pity_legendary}/80\nPity Void: {pity_void}/165")
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -212,6 +241,8 @@ def main():
     app.add_handler(CommandHandler("pull10", pull10))
     app.add_handler(CommandHandler("inventory", inventory))
     app.add_handler(CommandHandler("daily", daily))
+    app.add_handler(CommandHandler("history", history))
+    app.add_handler(CommandHandler("pity", pity))
     app.run_polling()
 
 if __name__ == "__main__":

@@ -159,4 +159,23 @@ class PBClient:
 
     def get_rank(self, level):
         idx = min(level - 1, len(RANKS) - 1)
-        return RANKS[idx] 
+        return RANKS[idx]
+
+    def get_pull_history(self, user_id, limit=10):
+        url = f"{self.base_url}/collections/pull_history/records"
+        params = {
+            "filter": f'user_id="{user_id}"',
+            "expand": "card_id",
+            "sort": "-pulled_at",
+            "perPage": limit
+        }
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        return resp.json().get("items", [])
+
+    def get_pity_status(self, user_id):
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        resp = httpx.get(url, headers=self.headers)
+        resp.raise_for_status()
+        user = resp.json()
+        return user.get("pity_legendary", 0), user.get("pity_void", 0) 
