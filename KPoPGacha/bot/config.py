@@ -1,0 +1,9 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+POCKETBASE_URL = os.getenv('POCKETBASE_URL')
+POCKETBASE_USER_EMAIL = os.getenv('POCKETBASE_USER_EMAIL')
+POCKETBASE_USER_PASSWORD = os.getenv('POCKETBASE_USER_PASSWORD') 
