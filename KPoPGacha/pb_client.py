@@ -4,18 +4,17 @@ from datetime import datetime, timezone
 from math import ceil
 from config import POCKETBASE_URL, POCKETBASE_BOT_EMAIL, POCKETBASE_BOT_PASSWORD
 
-RANKS = [
-    "Стажёр V", "Стажёр IV", "Стажёр III", "Стажёр II", "Стажёр I",
-    "Новичок V", "Новичок IV", "Новичок III", "Новичок II", "Новичок I",
-    "Восходящая звезда V", "Восходящая звезда IV", "Восходящая звезда III", "Восходящая звезда II", "Восходящая звезда I",
-    "Идол V", "Идол IV", "Идол III", "Идол II", "Идол I",
-    "Суперзвезда V", "Суперзвезда IV", "Суперзвезда III", "Суперзвезда II", "Суперзвезда I",
-    "Легенда"
-]
-
-RARITY_EXP = {1: 1, 2: 5, 3: 15, 4: 50, 5: 100, 6: 250}
-
 class PBClient:
+    RANKS = [
+        "Стажёр V", "Стажёр IV", "Стажёр III", "Стажёр II", "Стажёр I",
+        "Новичок V", "Новичок IV", "Новичок III", "Новичок II", "Новичок I",
+        "Восходящая звезда V", "Восходящая звезда IV", "Восходящая звезда III", "Восходящая звезда II", "Восходящая звезда I",
+        "Идол V", "Идол IV", "Идол III", "Идол II", "Идол I",
+        "Суперзвезда V", "Суперзвезда IV", "Суперзвезда III", "Суперзвезда II", "Суперзвезда I",
+        "Легенда"
+    ]
+    RARITY_EXP = {1: 1, 2: 5, 3: 15, 4: 50, 5: 100, 6: 250}
+
     def __init__(self):
         self.base_url = POCKETBASE_URL
         self.token = self._login_and_get_token()
@@ -157,7 +156,7 @@ class PBClient:
         level = current_level
         exp = current_exp + add_exp
         up = False
-        while exp >= self.exp_to_next_level(level) and level < len(RANKS):
+        while exp >= self.exp_to_next_level(level) and level < len(self.RANKS):
             exp -= self.exp_to_next_level(level)
             level += 1
             up = True
@@ -168,8 +167,8 @@ class PBClient:
         return resp.json(), up
 
     def get_rank(self, level):
-        idx = min(level - 1, len(RANKS) - 1)
-        return RANKS[idx]
+        idx = min(level - 1, len(self.RANKS) - 1)
+        return self.RANKS[idx]
 
     def get_pull_history(self, user_id, limit=10):
         url = f"{self.base_url}/collections/pull_history/records"
