@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 from pb_client import PBClient
 from config import TELEGRAM_BOT_TOKEN, ADMIN_IDS
@@ -207,6 +207,8 @@ async def pull10_impl(user, pb_user, update):
     results = ["<b>Результаты 10 попыток:</b>"]
     total_exp = 0
     levelup = False
+    media = []
+    captions = []
     for i in range(10):
         rarity = choose_rarity(pity_legendary, pity_void)
         card = pb.get_random_card_by_rarity(rarity)
@@ -228,13 +230,43 @@ async def pull10_impl(user, pb_user, update):
         is_first = pb.is_first_card(user_id, card["id"])
         exp_gain = base_exp + (base_exp // 2 if is_first else 0)
         total_exp += exp_gain
-        results.append(f"{i+1}. <b>{card['name']}</b> (<i>{card['group']}</i>) — <b>{card['rarity']}★</b> <b>+{exp_gain} опыта</b>" + (" <i>(первое получение)</i>" if is_first else ""))
+        caption = (
+            f"<b>{card['name']}</b> (<i>{card['group']}</i>)\n"
+            f"Альбом: <b>{card.get('album', '-')}</b>\n"
+            f"Редкость: <b>{card['rarity']}★</b> <b>+{exp_gain} опыта</b>"
+        )
+        if is_first:
+            caption += " <i>(первое получение)</i>"
+        overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
+        if overlayed_path:
+            media.append(InputMediaPhoto(open(overlayed_path, "rb"), caption=caption, parse_mode="HTML"))
+            captions.append(overlayed_path)
+        elif card.get("image_url"):
+            media.append(InputMediaPhoto(card["image_url"], caption=caption, parse_mode="HTML"))
+            captions.append(None)
+        else:
+            results.append(f"{i+1}. {card['name']} — нет изображения")
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
     pb.update_user_stars_and_pity(user_id, stars, pity_legendary, pity_void)
     if levelup:
         rank = pb.get_rank(updated_user.get('level', 1))
         results.append(f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>")
-    if target:
+    # Отправляем альбом, если есть хотя бы 2 картинки
+    if media:
+        try:
+            await target.reply_media_group(media)
+        except Exception:
+            # Если не поддерживается альбом — отправляем по одной
+            for m in media:
+                await target.reply_photo(m.media, caption=m.caption, parse_mode="HTML")
+        # Чистим временные файлы
+        for path in captions:
+            if path:
+                try:
+                    os.unlink(path)
+                except Exception:
+                    pass
+    if results and len(results) > 1:
         await target.reply_text("\n".join(results), parse_mode="HTML")
 
 async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -251,14 +283,43 @@ async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if target:
             await target.reply_text("Ваша коллекция пуста!", parse_mode="HTML")
         return
-    lines = ["<b>🎴 Ваша коллекция:</b>"]
+    # Выводим карточки как кнопки
+    keyboard = []
     for c in cards:
         card = c.get("expand", {}).get("card_id", {})
         if not card:
             continue
-        lines.append(f"<b>{card.get('name', '???')}</b> (<i>{card.get('group', '-')}</i>) — <b>{card.get('rarity', '?')}★</b> ×{c.get('count', 1)}")
+        btn_text = f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ ×{c.get('count', 1)}"
+        keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"showcard_{card.get('id')}")])
     if target:
-        await target.reply_text("\n".join(lines), parse_mode="HTML")
+        await target.reply_text("<b>🎴 Ваша коллекция:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+async def showcard_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    card_id = query.data.replace("showcard_", "")
+    # Получаем карточку из PB
+    url = f"{pb.base_url}/collections/cards/records/{card_id}"
+    resp = requests.get(url, headers=pb.headers)
+    if resp.status_code != 200:
+        await query.edit_message_text("Карточка не найдена.")
+        return
+    card = resp.json()
+    text = (
+        f"<b>{card.get('name')}</b>\n"
+        f"Группа: <b>{card.get('group')}</b>\n"
+        f"Альбом: <b>{card.get('album', '-')}</b>\n"
+        f"Редкость: <b>{card.get('rarity')}★</b>"
+    )
+    overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
+    if overlayed_path:
+        with open(overlayed_path, "rb") as img_file:
+            await query.message.reply_photo(img_file, caption=text, parse_mode="HTML")
+        os.unlink(overlayed_path)
+    elif card.get("image_url"):
+        await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML")
+    else:
+        await query.message.reply_text(text, parse_mode="HTML")
 
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
@@ -487,6 +548,7 @@ def main():
     )
     app.add_handler(addcard_conv)
     app.add_handler(CallbackQueryHandler(menu_callback))
+    app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
     app.run_polling()
 
 if __name__ == "__main__":
