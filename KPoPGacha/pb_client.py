@@ -226,6 +226,8 @@ class PBClient:
             "status": "active"
         }
         resp = httpx.post(url, headers=self.headers, json=data)
+        if resp.status_code >= 400:
+            print("AUCTION ERROR:", resp.text)
         resp.raise_for_status()
         return resp.json()
 
