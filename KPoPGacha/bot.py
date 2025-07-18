@@ -1,5 +1,5 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 from pb_client import PBClient
 from config import TELEGRAM_BOT_TOKEN
 import random
@@ -232,6 +232,71 @@ async def pity(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pity_legendary, pity_void = pb.get_pity_status(user_id)
     await update.message.reply_text(f"Pity Legendary: {pity_legendary}/80\nPity Void: {pity_void}/165")
 
+async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    top = pb.get_leaderboard(limit=10)
+    if not top:
+        await update.message.reply_text("Лидерборд пуст.")
+        return
+    lines = ["🏆 Топ коллекционеров:"]
+    for i, user in enumerate(top, 1):
+        name = user.get("name") or f"User {user.get('telegram_id', '')}"
+        level = user.get("level", 1)
+        exp = user.get("exp", 0)
+        rank = pb.get_rank(level)
+        lines.append(f"{i}. {name} — {level} ({rank}), опыт: {exp}")
+    await update.message.reply_text("\n".join(lines))
+
+async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    if not pb_user:
+        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        return
+    # Пока только заглушка, можно добавить опции позже
+    await update.message.reply_text("Настройки профиля будут доступны в будущих обновлениях.")
+
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("Профиль", callback_data="profile"), InlineKeyboardButton("Инвентарь", callback_data="inventory")],
+        [InlineKeyboardButton("Гача (1)", callback_data="pull"), InlineKeyboardButton("Гача (10)", callback_data="pull10")],
+        [InlineKeyboardButton("Ежедневка", callback_data="daily"), InlineKeyboardButton("История", callback_data="history")],
+        [InlineKeyboardButton("Pity", callback_data="pity"), InlineKeyboardButton("Лидерборд", callback_data="leaderboard")],
+        [InlineKeyboardButton("Настройки", callback_data="settings")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Главное меню:", reply_markup=reply_markup)
+
+async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    fake_update = Update(
+        update.update_id,
+        message=query.message,
+        effective_user=query.from_user
+    )
+    # Вызываем соответствующую команду
+    if data == "profile":
+        await profile(fake_update, context)
+    elif data == "inventory":
+        await inventory(fake_update, context)
+    elif data == "pull":
+        await pull(fake_update, context)
+    elif data == "pull10":
+        await pull10(fake_update, context)
+    elif data == "daily":
+        await daily(fake_update, context)
+    elif data == "history":
+        await history(fake_update, context)
+    elif data == "pity":
+        await pity(fake_update, context)
+    elif data == "leaderboard":
+        await leaderboard(fake_update, context)
+    elif data == "settings":
+        await settings(fake_update, context)
+    else:
+        await query.edit_message_text("Неизвестная команда.")
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -243,6 +308,10 @@ def main():
     app.add_handler(CommandHandler("daily", daily))
     app.add_handler(CommandHandler("history", history))
     app.add_handler(CommandHandler("pity", pity))
+    app.add_handler(CommandHandler("leaderboard", leaderboard))
+    app.add_handler(CommandHandler("settings", settings))
+    app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CallbackQueryHandler(menu_callback))
     app.run_polling()
 
 if __name__ == "__main__":

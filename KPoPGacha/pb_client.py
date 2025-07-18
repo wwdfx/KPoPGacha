@@ -178,4 +178,14 @@ class PBClient:
         resp = httpx.get(url, headers=self.headers)
         resp.raise_for_status()
         user = resp.json()
-        return user.get("pity_legendary", 0), user.get("pity_void", 0) 
+        return user.get("pity_legendary", 0), user.get("pity_void", 0)
+
+    def get_leaderboard(self, limit=10):
+        url = f"{self.base_url}/collections/tg_users/records"
+        params = {
+            "sort": "-level,-exp",
+            "perPage": limit
+        }
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        return resp.json().get("items", []) 
