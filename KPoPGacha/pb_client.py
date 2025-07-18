@@ -80,11 +80,20 @@ class PBClient:
             new_count = max(1, record.get("count", 0)) + 1
             data = {"count": new_count}
             resp2 = httpx.patch(update_url, headers=self.headers, json=data)
+            if resp2.status_code >= 400:
+                print(f"PATCH user_cards error: {resp2.status_code} {resp2.text}")
             resp2.raise_for_status()
             return resp2.json()
         else:
-            data = {"user_id": user_id, "card_id": card_id, "count": 1}
+            data = {
+                "user_id": user_id,
+                "card_id": card_id,
+                "count": 1,
+                "obtained_at": datetime.now(timezone.utc).isoformat()
+            }
             resp2 = httpx.post(url, headers=self.headers, json=data)
+            if resp2.status_code >= 400:
+                print(f"POST user_cards error: {resp2.status_code} {resp2.text}")
             resp2.raise_for_status()
             return resp2.json()
 
