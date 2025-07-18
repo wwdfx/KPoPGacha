@@ -353,25 +353,29 @@ async def auction_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Введите положительное число!")
         return AUCTION_PRICE
     auction_data[user_id]["price"] = price
-    await update.message.reply_text("На сколько часов выставить аукцион? (12, 24 или 48)")
+    # Показываем кнопки для выбора срока
+    keyboard = [
+        [InlineKeyboardButton("12 ч", callback_data="auction_dur_12"),
+         InlineKeyboardButton("24 ч", callback_data="auction_dur_24"),
+         InlineKeyboardButton("48 ч", callback_data="auction_dur_48")]
+    ]
+    await update.message.reply_text("Выберите срок аукциона:", reply_markup=InlineKeyboardMarkup(keyboard))
     return AUCTION_DURATION
 
 async def auction_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    try:
-        hours = int(update.message.text.strip())
-        if hours not in (12, 24, 48):
-            raise ValueError
-    except ValueError:
-        await update.message.reply_text("Только 12, 24 или 48!")
-        return AUCTION_DURATION
-    auction_data[user_id]["duration"] = hours
-    card_id = auction_data[user_id]["card_id"]
-    card = pb.get_auction(card_id) if hasattr(pb, 'get_auction') else None
-    text = f"Выставить карточку на аукцион за {auction_data[user_id]['price']} звёзд на {hours} ч?"
-    keyboard = [[InlineKeyboardButton("✅ Да", callback_data="auction_yes"), InlineKeyboardButton("❌ Нет", callback_data="auction_no")]]
-    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
-    return AUCTION_CONFIRM
+    query = update.callback_query
+    user_id = query.from_user.id
+    await query.answer()
+    if query.data.startswith("auction_dur_"):
+        hours = int(query.data.split("_")[-1])
+        auction_data[user_id]["duration"] = hours
+        data = auction_data[user_id]
+        text = f"Выставить карточку на аукцион за {data['price']} звёзд на {hours} ч?"
+        keyboard = [[InlineKeyboardButton("✅ Да", callback_data="auction_yes"), InlineKeyboardButton("❌ Нет", callback_data="auction_no")]]
+        await query.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return AUCTION_CONFIRM
+    await query.message.reply_text("Ошибка выбора срока.")
+    return ConversationHandler.END
 
 async def auction_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -677,7 +681,7 @@ def main():
         entry_points=[CallbackQueryHandler(auction_start_callback, pattern="^auction_")],
         states={
             AUCTION_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, auction_price)],
-            AUCTION_DURATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, auction_duration)],
+            AUCTION_DURATION: [CallbackQueryHandler(auction_duration, pattern="^auction_dur_\d+")],
             AUCTION_CONFIRM: [CallbackQueryHandler(auction_confirm, pattern="^auction_(yes|no)$")],
         },
         fallbacks=[CommandHandler("cancel", addcard_cancel)],
