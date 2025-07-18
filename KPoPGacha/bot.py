@@ -23,7 +23,7 @@ RARITY_CHANCES = [
 RARITY_WEIGHTS = [chance for _, chance in RARITY_CHANCES]
 RARITY_VALUES = [rarity for rarity, _ in RARITY_CHANCES]
 
-PULL_COST = 10  # Стоимость одной попытки в звёздах
+PULL_COST = 10  # Стоимость одной попытки в звёздах 
 PULL10_COST = 90  # Стоимость 10 попыток (скидка)
 
 ADD_NAME, ADD_GROUP, ADD_ALBUM, ADD_RARITY, ADD_IMAGE, ADD_CONFIRM = range(6)
@@ -547,8 +547,8 @@ def main():
         fallbacks=[CommandHandler("cancel", addcard_cancel)],
     )
     app.add_handler(addcard_conv)
-    app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
+    app.add_handler(CallbackQueryHandler(menu_callback))
     app.run_polling()
 
 if __name__ == "__main__":
