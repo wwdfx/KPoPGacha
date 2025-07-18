@@ -806,7 +806,11 @@ async def exchange_confirm_callback(update: Update, context: ContextTypes.DEFAUL
         else:
             await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
     except Exception as e:
-        await query.edit_message_text("Дубликат сдан!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+        try:
+            await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+        except Exception as e2:
+            print(f"[exchange_confirm_callback] Ошибка: {e} | {e2}")
+            await query.message.reply_text("Дубликат сдан!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
