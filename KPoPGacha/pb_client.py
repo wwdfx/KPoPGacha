@@ -1,4 +1,5 @@
 import httpx
+import random
 from config import POCKETBASE_URL, POCKETBASE_BOT_EMAIL, POCKETBASE_BOT_PASSWORD
 
 class PBClient:
@@ -36,4 +37,68 @@ class PBClient:
         }
         resp = httpx.post(url, headers=self.headers, json=data)
         resp.raise_for_status()
-        return resp.json() 
+        return resp.json()
+
+    def get_all_cards(self):
+        url = f"{self.base_url}/collections/cards/records"
+        resp = httpx.get(url, headers=self.headers)
+        resp.raise_for_status()
+        return resp.json().get("items", [])
+
+    def get_random_card_by_rarity(self, rarity):
+        url = f"{self.base_url}/collections/cards/records"
+        params = {"filter": f'rarity={rarity}'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if not items:
+            return None
+        return random.choice(items)
+
+    def add_card_to_user(self, user_id, card_id):
+        # Проверяем, есть ли уже такая карта у пользователя
+        url = f"{self.base_url}/collections/user_cards/records"
+        params = {"filter": f'user_id="{user_id}" && card_id="{card_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if items:
+            # Увеличиваем count
+            record = items[0]
+            update_url = f"{self.base_url}/collections/user_cards/records/{record['id']}"
+            data = {"count": record.get("count", 1) + 1}
+            resp2 = httpx.patch(update_url, headers=self.headers, json=data)
+            resp2.raise_for_status()
+            return resp2.json()
+        else:
+            # Создаём новую запись
+            data = {"user_id": user_id, "card_id": card_id, "count": 1}
+            resp2 = httpx.post(url, headers=self.headers, json=data)
+            resp2.raise_for_status()
+            return resp2.json()
+
+    def update_user_stars_and_pity(self, user_id, stars, pity_legendary, pity_void):
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        data = {"stars": stars, "pity_legendary": pity_legendary, "pity_void": pity_void}
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def add_pull_history(self, user_id, card_id, pull_type):
+        url = f"{self.base_url}/collections/pull_history/records"
+        data = {"user_id": user_id, "card_id": card_id, "pull_type": pull_type}
+        resp = httpx.post(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_user_inventory(self, user_id):
+        # Получить все user_cards пользователя с деталями карточек
+        url = f"{self.base_url}/collections/user_cards/records"
+        params = {
+            "filter": f'user_id="{user_id}"',
+            "expand": "card_id",
+            "perPage": 200
+        }
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        return resp.json().get("items", []) 
