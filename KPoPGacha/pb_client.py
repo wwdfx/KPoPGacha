@@ -1,10 +1,18 @@
 import httpx
-from config import POCKETBASE_URL, POCKETBASE_ADMIN_TOKEN
+from config import POCKETBASE_URL, POCKETBASE_BOT_EMAIL, POCKETBASE_BOT_PASSWORD
 
 class PBClient:
     def __init__(self):
         self.base_url = POCKETBASE_URL
-        self.headers = {"Authorization": f"Admin {POCKETBASE_ADMIN_TOKEN}"}
+        self.token = self._login_and_get_token()
+        self.headers = {"Authorization": f"Bearer {self.token}"}
+
+    def _login_and_get_token(self):
+        url = f"{self.base_url}/collections/users/auth-with-password"
+        data = {"identity": POCKETBASE_BOT_EMAIL, "password": POCKETBASE_BOT_PASSWORD}
+        resp = httpx.post(url, json=data)
+        resp.raise_for_status()
+        return resp.json()["token"]
 
     def get_user_by_telegram_id(self, telegram_id):
         url = f"{self.base_url}/collections/users/records"
