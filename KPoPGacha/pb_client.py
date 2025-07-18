@@ -1,5 +1,6 @@
 import httpx
 import random
+from datetime import datetime, timezone
 from config import POCKETBASE_URL, POCKETBASE_BOT_EMAIL, POCKETBASE_BOT_PASSWORD
 
 class PBClient:
@@ -56,14 +57,12 @@ class PBClient:
         return random.choice(items)
 
     def add_card_to_user(self, user_id, card_id):
-        # Проверяем, есть ли уже такая карта у пользователя
         url = f"{self.base_url}/collections/user_cards/records"
         params = {"filter": f'user_id="{user_id}" && card_id="{card_id}"'}
         resp = httpx.get(url, headers=self.headers, params=params)
         resp.raise_for_status()
         items = resp.json().get("items", [])
         if items:
-            # Увеличиваем count
             record = items[0]
             update_url = f"{self.base_url}/collections/user_cards/records/{record['id']}"
             data = {"count": record.get("count", 1) + 1}
@@ -71,7 +70,6 @@ class PBClient:
             resp2.raise_for_status()
             return resp2.json()
         else:
-            # Создаём новую запись
             data = {"user_id": user_id, "card_id": card_id, "count": 1}
             resp2 = httpx.post(url, headers=self.headers, json=data)
             resp2.raise_for_status()
@@ -92,7 +90,6 @@ class PBClient:
         return resp.json()
 
     def get_user_inventory(self, user_id):
-        # Получить все user_cards пользователя с деталями карточек
         url = f"{self.base_url}/collections/user_cards/records"
         params = {
             "filter": f'user_id="{user_id}"',
@@ -101,4 +98,22 @@ class PBClient:
         }
         resp = httpx.get(url, headers=self.headers, params=params)
         resp.raise_for_status()
-        return resp.json().get("items", []) 
+        return resp.json().get("items", [])
+
+    def check_daily_available(self, pb_user):
+        last_daily = pb_user.get("last_daily")
+        if not last_daily:
+            return True, None
+        last_dt = datetime.fromisoformat(last_daily.replace("Z", "+00:00")).date()
+        now_dt = datetime.now(timezone.utc).date()
+        if last_dt < now_dt:
+            return True, None
+        return False, last_dt
+
+    def give_daily_reward(self, user_id, current_stars, reward=20):
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        new_stars = current_stars + reward
+        data = {"stars": new_stars, "last_daily": datetime.now(timezone.utc).isoformat()}
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json(), reward 

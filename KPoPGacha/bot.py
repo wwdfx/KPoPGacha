@@ -164,6 +164,21 @@ async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append(f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ ×{c.get('count', 1)}")
     await update.message.reply_text("\n".join(lines))
 
+async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    if not pb_user:
+        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        return
+    available, last_dt = pb.check_daily_available(pb_user)
+    if not available:
+        await update.message.reply_text("Вы уже получали ежедневную награду сегодня! Возвращайтесь завтра.")
+        return
+    user_id = pb_user["id"]
+    stars = pb_user.get("stars", 0)
+    updated_user, reward = pb.give_daily_reward(user_id, stars)
+    await update.message.reply_text(f"Вы получили {reward} звёзд за ежедневный вход! До встречи завтра ✨")
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -172,6 +187,7 @@ def main():
     app.add_handler(CommandHandler("pull", pull))
     app.add_handler(CommandHandler("pull10", pull10))
     app.add_handler(CommandHandler("inventory", inventory))
+    app.add_handler(CommandHandler("daily", daily))
     app.run_polling()
 
 if __name__ == "__main__":
