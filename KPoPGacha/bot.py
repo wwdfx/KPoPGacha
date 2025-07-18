@@ -765,12 +765,19 @@ async def exchange_duplicate_callback(update: Update, context: ContextTypes.DEFA
     if count <= 1:
         await query.edit_message_text("У вас нет дубликатов этой карточки.")
         return
-    # Подтверждение
     text = f"Вы уверены, что хотите сдать 1 дубликат <b>{card.get('name', '?')}</b> ({rarity}★) за <b>{reward} звёзд</b>?\nОстанется: {count-1}"
     keyboard = [
         [InlineKeyboardButton("✅ Да, сдать", callback_data=f"exchange_confirm_{card_id}"), InlineKeyboardButton("❌ Отмена", callback_data=f"showcard_{card_id}")]
     ]
-    await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    # --- Фикс: если сообщение было фото, используем edit_caption ---
+    try:
+        if query.message.photo:
+            await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception as e:
+        # fallback на короткое сообщение
+        await query.edit_message_text("Сдать дубликат?", reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- Callback подтверждения обмена ---
 async def exchange_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -789,12 +796,17 @@ async def exchange_confirm_callback(update: Update, context: ContextTypes.DEFAUL
     if count <= 1:
         await query.edit_message_text("У вас нет дубликатов этой карточки.")
         return
-    # Уменьшаем count
     url = f"{pb.base_url}/collections/user_cards/records/{user_card['id']}"
     httpx.patch(url, headers=pb.headers, json={"count": count-1})
-    # Начисляем звёзды
     pb.update_user_stars_and_pity(user["id"], user.get("stars", 0) + reward, user.get("pity_legendary", 0), user.get("pity_void", 0))
-    await query.edit_message_text(f"♻️ Дубликат сдан! Вы получили <b>{reward} звёзд</b>. Осталось: {count-1}", parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+    text = f"♻️ Дубликат сдан! Вы получили <b>{reward} звёзд</b>. Осталось: {count-1}"
+    try:
+        if query.message.photo:
+            await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+        else:
+            await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
+    except Exception as e:
+        await query.edit_message_text("Дубликат сдан!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_{card_id}")]]))
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
