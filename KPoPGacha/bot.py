@@ -45,6 +45,9 @@ def get_reply_target(update, prefer_edit=False):
         return update.callback_query.message
     return None
 
+def back_keyboard():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data="menu")]])
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
     user = update.effective_user
@@ -77,12 +80,16 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target = get_reply_target(update)
+    prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
+    target = get_reply_target(update, prefer_edit=prefer_edit)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
         return
     rank = pb.get_rank(pb_user.get('level', 1))
     text = (
@@ -95,7 +102,10 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<b>🕳️ Pity Void:</b> {pb_user.get('pity_void', 0)} / 165"
     )
     if target:
-        await target.reply_text(text, parse_mode="HTML")
+        if prefer_edit:
+            await target.edit_text(text, parse_mode="HTML", reply_markup=back_keyboard())
+        else:
+            await target.reply_text(text, parse_mode="HTML", reply_markup=back_keyboard())
 
 # --- Гача логика ---
 def choose_rarity(pity_legendary, pity_void):
@@ -278,20 +288,26 @@ async def pull10_impl(user, pb_user, update):
         await target.reply_text("\n".join(results), parse_mode="HTML")
 
 async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target = get_reply_target(update)
+    prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
+    target = get_reply_target(update, prefer_edit=prefer_edit)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
         return
     user_id = pb_user["id"]
     cards = pb.get_user_inventory(user_id)
     if not cards:
         if target:
-            await target.reply_text("Ваша коллекция пуста!", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("Ваша коллекция пуста!", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("Ваша коллекция пуста!", parse_mode="HTML", reply_markup=back_keyboard())
         return
-    # Выводим карточки как кнопки
     keyboard = []
     for c in cards:
         card = c.get("expand", {}).get("card_id", {})
@@ -300,7 +316,10 @@ async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
         btn_text = f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ ×{c.get('count', 1)}"
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"showcard_{card.get('id')}")])
     if target:
-        await target.reply_text("<b>🎴 Ваша коллекция:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        if prefer_edit:
+            await target.edit_text("<b>🎴 Ваша коллекция:</b>", reply_markup=InlineKeyboardMarkup(keyboard + [[InlineKeyboardButton("⬅️ Назад", callback_data="menu")]]), parse_mode="HTML")
+        else:
+            await target.reply_text("<b>🎴 Ваша коллекция:</b>", reply_markup=InlineKeyboardMarkup(keyboard + [[InlineKeyboardButton("⬅️ Назад", callback_data="menu")]]), parse_mode="HTML")
 
 async def showcard_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -460,37 +479,54 @@ async def buyauction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text(f"✅ Покупка успешна! Карточка {card.get('name')} теперь ваша.")
 
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target = get_reply_target(update)
+    prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
+    target = get_reply_target(update, prefer_edit=prefer_edit)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
         return
     available, last_dt = pb.check_daily_available(pb_user)
     if not available:
         if target:
-            await target.reply_text("<b>Вы уже получали ежедневную награду сегодня! Возвращайтесь завтра.</b>", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("<b>Вы уже получали ежедневную награду сегодня! Возвращайтесь завтра.</b>", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("<b>Вы уже получали ежедневную награду сегодня! Возвращайтесь завтра.</b>", parse_mode="HTML", reply_markup=back_keyboard())
         return
     user_id = pb_user["id"]
     stars = pb_user.get("stars", 0)
     updated_user, reward = pb.give_daily_reward(user_id, stars)
     if target:
-        await target.reply_text(f"<b>🎁 Вы получили {reward} звёзд за ежедневный вход!</b>\nДо встречи завтра ✨", parse_mode="HTML")
+        if prefer_edit:
+            await target.edit_text(f"<b>🎁 Вы получили {reward} звёзд за ежедневный вход!</b>\nДо встречи завтра ✨", parse_mode="HTML", reply_markup=back_keyboard())
+        else:
+            await target.reply_text(f"<b>🎁 Вы получили {reward} звёзд за ежедневный вход!</b>\nДо встречи завтра ✨", parse_mode="HTML", reply_markup=back_keyboard())
 
 async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target = get_reply_target(update)
+    prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
+    target = get_reply_target(update, prefer_edit=prefer_edit)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
         return
     user_id = pb_user["id"]
     pulls = pb.get_pull_history(user_id, limit=10)
     if not pulls:
         if target:
-            await target.reply_text("История пуста.", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("История пуста.", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("История пуста.", parse_mode="HTML", reply_markup=back_keyboard())
         return
     lines = ["<b>🕓 Последние попытки:</b>"]
     for p in pulls:
@@ -499,27 +535,41 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
             continue
         lines.append(f"<b>{card.get('name', '???')}</b> (<i>{card.get('group', '-')}</i>) — <b>{card.get('rarity', '?')}★</b> [<i>{p.get('pull_type', '')}</i>]")
     if target:
-        await target.reply_text("\n".join(lines), parse_mode="HTML")
+        if prefer_edit:
+            await target.edit_text("\n".join(lines), parse_mode="HTML", reply_markup=back_keyboard())
+        else:
+            await target.reply_text("\n".join(lines), parse_mode="HTML", reply_markup=back_keyboard())
 
 async def pity(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target = get_reply_target(update)
+    prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
+    target = get_reply_target(update, prefer_edit=prefer_edit)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
         return
     user_id = pb_user["id"]
     pity_legendary, pity_void = pb.get_pity_status(user_id)
     if target:
-        await target.reply_text(f"<b>🎯 Pity Legendary:</b> {pity_legendary}/80\n<b>🕳️ Pity Void:</b> {pity_void}/165", parse_mode="HTML")
+        if prefer_edit:
+            await target.edit_text(f"<b>🎯 Pity Legendary:</b> {pity_legendary}/80\n<b>🕳️ Pity Void:</b> {pity_void}/165", parse_mode="HTML", reply_markup=back_keyboard())
+        else:
+            await target.reply_text(f"<b>🎯 Pity Legendary:</b> {pity_legendary}/80\n<b>🕳️ Pity Void:</b> {pity_void}/165", parse_mode="HTML", reply_markup=back_keyboard())
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target = get_reply_target(update)
+    prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
+    target = get_reply_target(update, prefer_edit=prefer_edit)
     top = pb.get_leaderboard(limit=10)
     if not top:
         if target:
-            await target.reply_text("Лидерборд пуст.", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("Лидерборд пуст.", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("Лидерборд пуст.", parse_mode="HTML", reply_markup=back_keyboard())
         return
     lines = ["<b>🏆 Топ коллекционеров:</b>"]
     for i, user in enumerate(top, 1):
@@ -529,23 +579,33 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rank = pb.get_rank(level)
         lines.append(f"{i}. <b>{name}</b> — <b>{level}</b> <i>({rank})</i>, опыт: <b>{exp}</b>")
     if target:
-        await target.reply_text("\n".join(lines), parse_mode="HTML")
+        if prefer_edit:
+            await target.edit_text("\n".join(lines), parse_mode="HTML", reply_markup=back_keyboard())
+        else:
+            await target.reply_text("\n".join(lines), parse_mode="HTML", reply_markup=back_keyboard())
 
 async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target = get_reply_target(update)
+    prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
+    target = get_reply_target(update, prefer_edit=prefer_edit)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
         if target:
-            await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML")
+            if prefer_edit:
+                await target.edit_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
+            else:
+                await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
         return
     if target:
-        await target.reply_text("<b>⚙️ Настройки профиля будут доступны в будущих обновлениях.</b>", parse_mode="HTML")
+        if prefer_edit:
+            await target.edit_text("<b>⚙️ Настройки профиля будут доступны в будущих обновлениях.</b>", parse_mode="HTML", reply_markup=back_keyboard())
+        else:
+            await target.reply_text("<b>⚙️ Настройки профиля будут доступны в будущих обновлениях.</b>", parse_mode="HTML", reply_markup=back_keyboard())
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
     keyboard = [
-        [InlineKeyboardButton("👤 Профиль", callback_data="profile"), InlineKeyboardButton("🎴 Инвентарь", callback_data="inventory")],
+        [InlineKeyboardButton("�� Профиль", callback_data="profile"), InlineKeyboardButton("🎴 Инвентарь", callback_data="inventory")],
         [InlineKeyboardButton("🎲 Гача (1)", callback_data="pull"), InlineKeyboardButton("🔟 Гача (10)", callback_data="pull10")],
         [InlineKeyboardButton("🎁 Ежедневка", callback_data="daily"), InlineKeyboardButton("🕓 История", callback_data="history")],
         [InlineKeyboardButton("🎯 Pity", callback_data="pity"), InlineKeyboardButton("🏆 Лидерборд", callback_data="leaderboard")],
