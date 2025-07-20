@@ -269,6 +269,9 @@ class PBClient:
         resp.raise_for_status()
         promo = resp.json()
         used_by = promo.get("used_by", [])
+        # Исправление: если used_by строка (один relation), делаем список
+        if isinstance(used_by, str):
+            used_by = [used_by]
         if user_id in used_by:
             return False  # Уже использовал
         used_by.append(user_id)
