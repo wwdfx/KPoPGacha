@@ -876,7 +876,7 @@ async def exchange_duplicate_callback(update: Update, context: ContextTypes.DEFA
         else:
             await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     except Exception as e:
-        await query.edit_message_text("Сдать дубликаты?", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     return EXCHANGE_SELECT
 
 async def exchange_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -895,14 +895,26 @@ async def exchange_select_callback(update: Update, context: ContextTypes.DEFAULT
     reward_map = {1: 1, 2: 3, 3: 10, 4: 30, 5: 100, 6: 250}
     reward = reward_map.get(rarity, 1)
     if count <= 1 or amount < 1 or amount > (count-1):
-        await query.edit_message_text("Некорректное количество для обмена.")
+        try:
+            if query.message.photo:
+                await query.message.edit_caption("Некорректное количество для обмена.")
+            else:
+                await query.edit_message_text("Некорректное количество для обмена.")
+        except Exception:
+            await query.message.reply_text("Некорректное количество для обмена.")
         return ConversationHandler.END
     context.user_data["exchange"] = {"card_id": card_id, "amount": amount, "reward": reward, "rarity": rarity, "name": card.get("name", "?")}
     text = f"Вы уверены, что хотите сдать <b>{amount}</b> дубликатов <b>{card.get('name', '?')}</b> ({rarity}★) за <b>{reward*amount} звёзд</b>?\nОстанется: {count-amount}"
     keyboard = [
         [InlineKeyboardButton(f"✅ Да, сдать {amount}", callback_data=f"exchange_confirm_bulk_{card_id}_{amount}"), InlineKeyboardButton("❌ Отмена", callback_data=f"showcard_{card_id}")]
     ]
-    await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    try:
+        if query.message.photo:
+            await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception:
+        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     return EXCHANGE_CONFIRM
 
 async def exchange_confirm_bulk_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -921,7 +933,13 @@ async def exchange_confirm_bulk_callback(update: Update, context: ContextTypes.D
     reward_map = {1: 1, 2: 3, 3: 10, 4: 30, 5: 100, 6: 250}
     reward = reward_map.get(rarity, 1)
     if count <= 1 or amount < 1 or amount > (count-1):
-        await query.edit_message_text("Некорректное количество для обмена.")
+        try:
+            if query.message.photo:
+                await query.message.edit_caption("Некорректное количество для обмена.")
+            else:
+                await query.edit_message_text("Некорректное количество для обмена.")
+        except Exception:
+            await query.message.reply_text("Некорректное количество для обмена.")
         return ConversationHandler.END
     url = f"{pb.base_url}/collections/user_cards/records/{user_card['id']}"
     httpx.patch(url, headers=pb.headers, json={"count": count-amount})
@@ -933,7 +951,7 @@ async def exchange_confirm_bulk_callback(update: Update, context: ContextTypes.D
             await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
         else:
             await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
-    except Exception as e:
+    except Exception:
         await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
     context.user_data.pop("exchange", None)
     return ConversationHandler.END
