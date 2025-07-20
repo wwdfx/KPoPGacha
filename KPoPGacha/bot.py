@@ -39,6 +39,8 @@ message_counters = defaultdict(int)
 
 PROMO_ENTER, = range(20, 21)
 
+EXCHANGE_SELECT, EXCHANGE_CONFIRM = range(40, 42)
+
 async def promo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
     await target.reply_text("Введите промокод:")
@@ -861,24 +863,28 @@ async def exchange_duplicate_callback(update: Update, context: ContextTypes.DEFA
                 await query.message.reply_text(text)
             except Exception as e2:
                 print(f"[exchange_duplicate_callback] Ошибка: {e} | {e2}")
-        return
-    text = f"Вы уверены, что хотите сдать 1 дубликат <b>{card.get('name', '?')}</b> ({rarity}★) за <b>{reward} звёзд</b>?\nОстанется: {count-1}"
-    keyboard = [
-        [InlineKeyboardButton("✅ Да, сдать", callback_data=f"exchange_confirm_{card_id}"), InlineKeyboardButton("❌ Отмена", callback_data=f"showcard_{card_id}")]
-    ]
+        return ConversationHandler.END
+    # Выбор количества дубликатов для обмена
+    keyboard = []
+    for i in range(1, min(count, 10)+1):
+        keyboard.append([InlineKeyboardButton(f"{i}", callback_data=f"exchange_select_{card_id}_{i}")])
+    keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data=f"showcard_{card_id}")])
+    text = f"Сколько дубликатов <b>{card.get('name', '?')}</b> ({rarity}★) вы хотите сдать? (Доступно: {count-1})"
     try:
         if query.message.photo:
             await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
             await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     except Exception as e:
-        await query.edit_message_text("Сдать дубликат?", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text("Сдать дубликаты?", reply_markup=InlineKeyboardMarkup(keyboard))
+    return EXCHANGE_SELECT
 
-# --- Callback подтверждения обмена ---
-async def exchange_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def exchange_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    card_id = query.data.replace("exchange_confirm_", "")
+    data = query.data.replace("exchange_select_", "")
+    card_id, amount = data.rsplit("_", 1)
+    amount = int(amount)
     user_id = query.from_user.id
     user = pb.get_user_by_telegram_id(user_id)
     user_cards = pb.get_user_inventory(user["id"])
@@ -888,35 +894,49 @@ async def exchange_confirm_callback(update: Update, context: ContextTypes.DEFAUL
     rarity = card.get("rarity", 1)
     reward_map = {1: 1, 2: 3, 3: 10, 4: 30, 5: 100, 6: 250}
     reward = reward_map.get(rarity, 1)
-    if count <= 1:
-        text = "У вас нет дубликатов этой карточки."
-        try:
-            if query.message.photo:
-                await query.message.edit_caption(text)
-            else:
-                await query.edit_message_text(text)
-        except Exception as e:
-            try:
-                await query.message.reply_text(text)
-            except Exception as e2:
-                print(f"[exchange_confirm_callback] Ошибка: {e} | {e2}")
-        return
+    if count <= 1 or amount < 1 or amount > (count-1):
+        await query.edit_message_text("Некорректное количество для обмена.")
+        return ConversationHandler.END
+    context.user_data["exchange"] = {"card_id": card_id, "amount": amount, "reward": reward, "rarity": rarity, "name": card.get("name", "?")}
+    text = f"Вы уверены, что хотите сдать <b>{amount}</b> дубликатов <b>{card.get('name', '?')}</b> ({rarity}★) за <b>{reward*amount} звёзд</b>?\nОстанется: {count-amount}"
+    keyboard = [
+        [InlineKeyboardButton(f"✅ Да, сдать {amount}", callback_data=f"exchange_confirm_bulk_{card_id}_{amount}"), InlineKeyboardButton("❌ Отмена", callback_data=f"showcard_{card_id}")]
+    ]
+    await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    return EXCHANGE_CONFIRM
+
+async def exchange_confirm_bulk_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data.replace("exchange_confirm_bulk_", "")
+    card_id, amount = data.rsplit("_", 1)
+    amount = int(amount)
+    user_id = query.from_user.id
+    user = pb.get_user_by_telegram_id(user_id)
+    user_cards = pb.get_user_inventory(user["id"])
+    user_card = next((c for c in user_cards if c.get("card_id") == card_id or (c.get("expand", {}).get("card_id", {}).get("id") == card_id)), None)
+    count = user_card.get("count", 0) if user_card else 0
+    card = user_card.get("expand", {}).get("card_id", {}) if user_card else {}
+    rarity = card.get("rarity", 1)
+    reward_map = {1: 1, 2: 3, 3: 10, 4: 30, 5: 100, 6: 250}
+    reward = reward_map.get(rarity, 1)
+    if count <= 1 or amount < 1 or amount > (count-1):
+        await query.edit_message_text("Некорректное количество для обмена.")
+        return ConversationHandler.END
     url = f"{pb.base_url}/collections/user_cards/records/{user_card['id']}"
-    httpx.patch(url, headers=pb.headers, json={"count": count-1})
-    await asyncio.sleep(0.3)  # Дать Pocketbase время обновить данные
-    pb.update_user_stars_and_pity(user["id"], user.get("stars", 0) + reward, user.get("pity_legendary", 0), user.get("pity_void", 0))
-    text = f"♻️ Дубликат сдан! Вы получили <b>{reward} звёзд</b>. Осталось: {count-1}"
+    httpx.patch(url, headers=pb.headers, json={"count": count-amount})
+    await asyncio.sleep(0.3)
+    pb.update_user_stars_and_pity(user["id"], user.get("stars", 0) + reward*amount, user.get("pity_legendary", 0), user.get("pity_void", 0))
+    text = f"♻️ Обмен завершён! Вы получили <b>{reward*amount} звёзд</b>. Осталось: {count-amount}"
     try:
         if query.message.photo:
             await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
         else:
             await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
     except Exception as e:
-        try:
-            await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
-        except Exception as e2:
-            print(f"[exchange_confirm_callback] Ошибка: {e} | {e2}")
-            await query.message.reply_text("Дубликат сдан!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
+        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ К карточке", callback_data=f"showcard_refresh_{card_id}")]]))
+    context.user_data.pop("exchange", None)
+    return ConversationHandler.END
 
 # --- Новый callback для обновления карточки после обмена ---
 async def showcard_refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1010,14 +1030,21 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", addpromo_cancel)],
     )
+    exchange_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(exchange_duplicate_callback, pattern="^exchange_")],
+        states={
+            EXCHANGE_SELECT: [CallbackQueryHandler(exchange_select_callback, pattern="^exchange_select_.*")],
+            EXCHANGE_CONFIRM: [CallbackQueryHandler(exchange_confirm_bulk_callback, pattern="^exchange_confirm_bulk_.*")],
+        },
+        fallbacks=[CallbackQueryHandler(showcard_callback, pattern="^showcard_")],
+    )
     app.add_handler(addcard_conv)
     app.add_handler(auction_conv)
     app.add_handler(promo_conv)
     app.add_handler(addpromo_conv)
+    app.add_handler(exchange_conv)
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
     app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
-    app.add_handler(CallbackQueryHandler(exchange_duplicate_callback, pattern="^exchange_"))
-    app.add_handler(CallbackQueryHandler(exchange_confirm_callback, pattern="^exchange_confirm_"))
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
