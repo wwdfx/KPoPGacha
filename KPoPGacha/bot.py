@@ -37,6 +37,93 @@ addcard_data = {}
 
 message_counters = defaultdict(int)
 
+PROMO_ENTER, = range(20, 21)
+
+async def promo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_reply_target(update)
+    await target.reply_text("Введите промокод:")
+    return PROMO_ENTER
+
+async def promo_enter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    code = update.message.text.strip()
+    user = update.effective_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    promo = pb.get_promo(code)
+    if not promo:
+        await update.message.reply_text("❌ Промокод не найден.")
+        return ConversationHandler.END
+    if not promo.get("is_active", True):
+        await update.message.reply_text("❌ Промокод неактивен.")
+        return ConversationHandler.END
+    usage_limit = promo.get("usage_limit", 1)
+    used_by = promo.get("used_by", [])
+    if len(used_by) >= usage_limit:
+        await update.message.reply_text("❌ Превышен лимит активаций промокода.")
+        return ConversationHandler.END
+    if pb_user["id"] in used_by:
+        await update.message.reply_text("❌ Вы уже использовали этот промокод.")
+        return ConversationHandler.END
+    # Выдаём награду
+    reward = promo.get("reward", 0)
+    pb.update_user_stars_and_pity(pb_user["id"], pb_user.get("stars", 0) + reward, pb_user.get("pity_legendary", 0), pb_user.get("pity_void", 0))
+    pb.use_promo(promo["id"], pb_user["id"])
+    await update.message.reply_text(f"✅ Промокод активирован! Вы получили {reward} звёзд.")
+    return ConversationHandler.END
+
+async def promo_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ Ввод промокода отменён.")
+    return ConversationHandler.END
+
+# --- Админ-команда для добавления промокода ---
+ADD_PROMO_CODE, ADD_PROMO_REWARD, ADD_PROMO_LIMIT = range(30, 33)
+addpromo_data = {}
+
+async def addpromo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Только для администратора.")
+        return ConversationHandler.END
+    addpromo_data[user_id] = {}
+    await update.message.reply_text("Введите промокод (только латиница/цифры):")
+    return ADD_PROMO_CODE
+
+async def addpromo_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    addpromo_data[user_id]["code"] = update.message.text.strip()
+    await update.message.reply_text("Введите награду (сколько звёзд):")
+    return ADD_PROMO_REWARD
+
+async def addpromo_reward(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    try:
+        reward = int(update.message.text.strip())
+    except ValueError:
+        await update.message.reply_text("Введите число!")
+        return ADD_PROMO_REWARD
+    addpromo_data[user_id]["reward"] = reward
+    await update.message.reply_text("Введите лимит использований (число, 0 = безлимит):")
+    return ADD_PROMO_LIMIT
+
+async def addpromo_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    try:
+        limit = int(update.message.text.strip())
+    except ValueError:
+        await update.message.reply_text("Введите число!")
+        return ADD_PROMO_LIMIT
+    addpromo_data[user_id]["usage_limit"] = limit if limit > 0 else 1000000
+    data = addpromo_data[user_id]
+    pb.add_promo(data["code"], data["reward"], data["usage_limit"], True)
+    await update.message.reply_text(f"✅ Промокод {data['code']} добавлен! Награда: {data['reward']} звёзд, лимит: {data['usage_limit']}")
+    addpromo_data.pop(user_id, None)
+    return ConversationHandler.END
+
+async def addpromo_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    addpromo_data.pop(user_id, None)
+    await update.message.reply_text("❌ Добавление промокода отменено.")
+    return ConversationHandler.END
+
 def get_reply_target(update, prefer_edit=False):
     if prefer_edit and hasattr(update, 'callback_query') and update.callback_query and update.callback_query.message:
         return update.callback_query.message
@@ -907,8 +994,26 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", addcard_cancel)],
     )
+    promo_conv = ConversationHandler(
+        entry_points=[CommandHandler("promo", promo_start)],
+        states={
+            PROMO_ENTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, promo_enter)],
+        },
+        fallbacks=[CommandHandler("cancel", promo_cancel)],
+    )
+    addpromo_conv = ConversationHandler(
+        entry_points=[CommandHandler("addpromo", addpromo_start)],
+        states={
+            ADD_PROMO_CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, addpromo_code)],
+            ADD_PROMO_REWARD: [MessageHandler(filters.TEXT & ~filters.COMMAND, addpromo_reward)],
+            ADD_PROMO_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, addpromo_limit)],
+        },
+        fallbacks=[CommandHandler("cancel", addpromo_cancel)],
+    )
     app.add_handler(addcard_conv)
     app.add_handler(auction_conv)
+    app.add_handler(promo_conv)
+    app.add_handler(addpromo_conv)
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
     app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
     app.add_handler(CallbackQueryHandler(exchange_duplicate_callback, pattern="^exchange_"))
