@@ -251,4 +251,41 @@ class PBClient:
         url = f"{self.base_url}/collections/auctions/records/{auction_id}?expand=card_id,seller_id"
         resp = httpx.get(url, headers=self.headers)
         resp.raise_for_status()
+        return resp.json()
+
+    # --- PROMO CODE METHODS ---
+    def get_promo(self, code):
+        url = f"{self.base_url}/collections/promo_codes/records"
+        params = {"filter": f'code="{code}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        return items[0] if items else None
+
+    def use_promo(self, promo_id, user_id):
+        # Получаем текущий used_by
+        url = f"{self.base_url}/collections/promo_codes/records/{promo_id}"
+        resp = httpx.get(url, headers=self.headers)
+        resp.raise_for_status()
+        promo = resp.json()
+        used_by = promo.get("used_by", [])
+        if user_id in used_by:
+            return False  # Уже использовал
+        used_by.append(user_id)
+        data = {"used_by": used_by}
+        resp2 = httpx.patch(url, headers=self.headers, json=data)
+        resp2.raise_for_status()
+        return True
+
+    def add_promo(self, code, reward, usage_limit=1, is_active=True):
+        url = f"{self.base_url}/collections/promo_codes/records"
+        data = {
+            "code": code,
+            "reward": reward,
+            "usage_limit": usage_limit,
+            "is_active": is_active,
+            "used_by": []
+        }
+        resp = httpx.post(url, headers=self.headers, json=data)
+        resp.raise_for_status()
         return resp.json() 
