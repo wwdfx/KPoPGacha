@@ -902,11 +902,12 @@ def main():
         entry_points=[CallbackQueryHandler(auction_start_callback, pattern="^auction_")],
         states={
             AUCTION_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, auction_price)],
-            AUCTION_DURATION: [CallbackQueryHandler(auction_duration, pattern="^auction_dur_\d+")],
+            AUCTION_DURATION: [CallbackQueryHandler(auction_duration, pattern="^auction_dur_\\d+")],
             AUCTION_CONFIRM: [CallbackQueryHandler(auction_confirm, pattern="^auction_(yes|no)$")],
         },
         fallbacks=[CommandHandler("cancel", addcard_cancel)],
     )
+    app.add_handler(addcard_conv)
     app.add_handler(auction_conv)
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
     app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
