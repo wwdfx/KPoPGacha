@@ -7,3 +7,10 @@ POCKETBASE_BOT_PASSWORD = "272421a212427"
 
 ADMIN_IDS = [839731670, 6758221412, 7316965558, 5229171584]  # Замените на свой Telegram ID (или список ID) 
 TELEGRAM_AUCTION_CHANNEL_ID = -1002836961690 
+
+ACHIEVEMENT_REWARDS = {
+    1: {"exp": 250, "stars": 250},
+    2: {"exp": 400, "stars": 400},
+    3: {"exp": 650, "stars": 650},
+    4: {"exp": 900, "stars": 900},
+} 

@@ -298,4 +298,26 @@ class PBClient:
         params = {"filter": f'group="{group}" && album="{album}"', "perPage": 200}
         resp = httpx.get(url, headers=self.headers, params=params)
         resp.raise_for_status()
-        return resp.json().get("items", []) 
+        return resp.json().get("items", [])
+
+    def get_collection_achievement(self, user_id, group, album):
+        url = f"{self.base_url}/collections/collection_achievements/records"
+        params = {"filter": f'user_id="{user_id}" && group="{group}" && album="{album}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        return items[0] if items else None
+
+    def set_collection_achievement(self, user_id, group, album, level):
+        ach = self.get_collection_achievement(user_id, group, album)
+        url = f"{self.base_url}/collections/collection_achievements/records"
+        data = {"user_id": user_id, "group": group, "album": album, "level": level}
+        if ach:
+            patch_url = f"{url}/{ach['id']}"
+            resp = httpx.patch(patch_url, headers=self.headers, json={"level": level})
+            resp.raise_for_status()
+            return resp.json()
+        else:
+            resp = httpx.post(url, headers=self.headers, json=data)
+            resp.raise_for_status()
+            return resp.json() 

@@ -475,6 +475,7 @@ async def inventory_group_callback(update: Update, context: ContextTypes.DEFAULT
 
 # --- Callback: выбор альбома, затем карточки ---
 async def inventory_album_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from config import ACHIEVEMENT_REWARDS
     query = update.callback_query
     if query.data == "none":
         await query.answer("У вас нет этой карточки!", show_alert=True)
@@ -506,6 +507,32 @@ async def inventory_album_callback(update: Update, context: ContextTypes.DEFAULT
     card_buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data=f"invgroup_{group}")])
     percent = int(have / max(1, len(all_cards)) * 100)
     text = f"<b>Группа:</b> <b>{group}</b>\n<b>Альбом:</b> <b>{album}</b>\n\n<b>Собрано:</b> <b>{have} / {len(all_cards)}</b> (<b>{percent}%</b>)\n\n<code>✅ — есть  ❌ — нет</code>\nВыберите карточку:"
+    # --- Ачивки за прогресс ---
+    ach_level = 0
+    if percent >= 100:
+        ach_level = 4
+    elif percent >= 75:
+        ach_level = 3
+    elif percent >= 50:
+        ach_level = 2
+    elif percent >= 25:
+        ach_level = 1
+    if ach_level > 0:
+        ach = pb.get_collection_achievement(pb_user["id"], group, album)
+        prev_level = ach["level"] if ach else 0
+        if ach_level > prev_level:
+            # Выдаём награду
+            reward = ACHIEVEMENT_REWARDS.get(ach_level, {"exp": 0, "stars": 0})
+            pb.set_collection_achievement(pb_user["id"], group, album, ach_level)
+            # Обновляем опыт и звёзды
+            new_exp = pb_user.get("exp", 0) + reward["exp"]
+            new_stars = pb_user.get("stars", 0) + reward["stars"]
+            pb.update_user_stars_and_pity(pb_user["id"], new_stars, pb_user.get("pity_legendary", 0), pb_user.get("pity_void", 0))
+            pb.add_exp_and_check_levelup(pb_user["id"], pb_user.get("level", 1), pb_user.get("exp", 0), reward["exp"])
+            try:
+                await query.message.reply_text(f"🏆 <b>Ачивка!</b> За {ach_level*25}% коллекции альбома <b>{album}</b> вы получили <b>{reward['exp']} опыта</b> и <b>{reward['stars']} звёзд</b>!", parse_mode="HTML")
+            except Exception:
+                pass
     try:
         if query.message:
             if query.message.photo:
