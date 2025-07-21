@@ -320,4 +320,11 @@ class PBClient:
         else:
             resp = httpx.post(url, headers=self.headers, json=data)
             resp.raise_for_status()
-            return resp.json() 
+            return resp.json()
+
+    def get_all_users(self):
+        url = f"{self.base_url}/collections/tg_users/records"
+        params = {"perPage": 500}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        return resp.json().get("items", []) 
