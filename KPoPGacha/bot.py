@@ -1100,7 +1100,7 @@ def main():
             AUCTION_DURATION: [CallbackQueryHandler(auction_duration, pattern="^auction_dur_\\d+")],
             AUCTION_CONFIRM: [CallbackQueryHandler(auction_confirm, pattern="^auction_(yes|no)$")],
         },
-        fallbacks=[CommandHandler("cancel", addcard_cancel)],
+        fallbacks=[],
     )
     promo_conv = ConversationHandler(
         entry_points=[CommandHandler("promo", promo_start)],
@@ -1126,18 +1126,19 @@ def main():
         },
         fallbacks=[CallbackQueryHandler(showcard_callback, pattern="^showcard_")],
     )
+    # --- Сначала inventory_group и album, потом menu_callback, остальные как были ---
     app.add_handler(addcard_conv)
     app.add_handler(auction_conv)
     app.add_handler(promo_conv)
     app.add_handler(addpromo_conv)
     app.add_handler(exchange_conv)
+    app.add_handler(CallbackQueryHandler(inventory_group_callback, pattern="^invgroup_"))
+    app.add_handler(CallbackQueryHandler(inventory_album_callback, pattern="^invalbum_"))
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
     app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
-    app.add_handler(CallbackQueryHandler(inventory_group_callback, pattern="^invgroup_"))
-    app.add_handler(CallbackQueryHandler(inventory_album_callback, pattern="^invalbum_"))
     app.run_polling()
 
 if __name__ == "__main__":
