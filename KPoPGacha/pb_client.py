@@ -291,4 +291,11 @@ class PBClient:
         }
         resp = httpx.post(url, headers=self.headers, json=data)
         resp.raise_for_status()
-        return resp.json() 
+        return resp.json()
+
+    def get_cards_by_group_album(self, group, album):
+        url = f"{self.base_url}/collections/cards/records"
+        params = {"filter": f'group="{group}" && album="{album}"', "perPage": 200}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        return resp.json().get("items", []) 
