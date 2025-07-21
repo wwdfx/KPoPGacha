@@ -1298,7 +1298,8 @@ async def banner_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
     if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        target = get_reply_target(update, prefer_edit=True)
+        await target.reply_text("Профиль не найден. Используйте /start.")
         return ConversationHandler.END
     # Получаем все уникальные группы
     all_cards = pb.get_all_cards()
@@ -1306,7 +1307,8 @@ async def banner_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(g, callback_data=f"banner_group_{g}")] for g in sorted(group_set)]
     keyboard.append([InlineKeyboardButton("🌐 Общий баннер (все карты)", callback_data="banner_reset")])
     keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="menu")])
-    await update.message.reply_text("<b>Выберите группу для баннера:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    target = get_reply_target(update, prefer_edit=True)
+    await target.reply_text("<b>Выберите группу для баннера:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     return BANNER_GROUP
 
 async def banner_group_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
