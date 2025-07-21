@@ -6,3 +6,6 @@ POCKETBASE_BOT_EMAIL = "botuser@bot.com"
 POCKETBASE_BOT_PASSWORD = "272421a212427"
 
 ADMIN_IDS = [839731670, 6758221412, 7316965558, 5229171584]  # Замените на свой Telegram ID (или список ID) 
+
+# ID или username канала для уведомлений о новых аукционах
+AUCTION_CHANNEL_ID = "@kpop_gacha_game"  # Например: -1001234567890 или '@yourchannel' 

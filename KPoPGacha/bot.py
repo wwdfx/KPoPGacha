@@ -11,6 +11,7 @@ from telegram.ext import ConversationHandler, MessageHandler, filters
 from collections import defaultdict
 import httpx
 import asyncio
+from config import AUCTION_CHANNEL_ID
 
 pb = PBClient()
 
@@ -585,6 +586,34 @@ async def auction_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         httpx.patch(url, headers=pb.headers, json={"count": new_count})
     pb.create_auction(data["card_id"], pb_user["id"], data["price"], data["duration"])
     await query.edit_message_text("✅ Карточка выставлена на аукцион!")
+    # Отправка уведомления в канал о новом аукционе
+    if AUCTION_CHANNEL_ID:
+        card = pb.get_card(data["card_id"])
+        text = (
+            f"<b>Новый аукцион!</b>\n"
+            f"Карточка: <b>{card.get('name', '???')}</b> ({card.get('group', '-')})\n"
+            f"Альбом: <b>{card.get('album', '-')}</b>\n"
+            f"Редкость: <b>{card.get('rarity', '?')}★</b>\n"
+            f"Цена: <b>{data['price']}⭐</b>\n"
+            f"Срок: <b>{data['duration']} ч</b>\n"
+            f"Продавец: <b>{pb_user.get('name', '-')[:20]}</b>"
+        )
+        try:
+            if card.get("image_url"):
+                await context.bot.send_photo(
+                    chat_id=AUCTION_CHANNEL_ID,
+                    photo=card["image_url"],
+                    caption=text,
+                    parse_mode="HTML"
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=AUCTION_CHANNEL_ID,
+                    text=text,
+                    parse_mode="HTML"
+                )
+        except Exception as e:
+            print(f"[AUCTION CHANNEL ERROR] {e}")
     auction_data.pop(user_id, None)
     return ConversationHandler.END
 
