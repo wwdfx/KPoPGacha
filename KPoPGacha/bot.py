@@ -21,7 +21,7 @@ RARITY_CHANCES = [
     (3, 20),   # 3 звезды - 25%
     (4, 5),   # 4 звезды - 12%
     (5, 2),    # 5 звёзд - 3%
-    (6, 1),    # 6 звёзд - 1%
+    (6, 0.5),    # 6 звёзд - 0.5%
 ]
 RARITY_WEIGHTS = [chance for _, chance in RARITY_CHANCES]
 RARITY_VALUES = [rarity for rarity, _ in RARITY_CHANCES]
