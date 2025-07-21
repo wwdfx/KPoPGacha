@@ -377,6 +377,7 @@ async def pull10_impl(user, pb_user, update):
     if results and len(results) > 1:
         await target.reply_text("\n".join(results), parse_mode="HTML")
 
+# --- Новый инвентарь: группировка по группам и альбомам ---
 async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
     target = get_reply_target(update, prefer_edit=prefer_edit)
@@ -398,18 +399,87 @@ async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await target.reply_text("Ваша коллекция пуста!", parse_mode="HTML", reply_markup=back_keyboard())
         return
-    keyboard = []
+    # Группируем по группам
+    group_set = set()
     for c in cards:
         card = c.get("expand", {}).get("card_id", {})
         if not card:
             continue
-        btn_text = f"{card.get('name', '???')} ({card.get('group', '-')}) — {card.get('rarity', '?')}★ ×{c.get('count', 1)}"
-        keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"showcard_{card.get('id')}")])
+        group = card.get("group", "-")
+        group_set.add(group)
+    keyboard = []
+    for group in sorted(group_set):
+        keyboard.append([InlineKeyboardButton(f"{group}", callback_data=f"invgroup_{group}")])
+    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="menu")])
+    text = "<b>🎴 Ваша коллекция:</b>\nВыберите группу:"
     if target:
         if prefer_edit:
-            await target.edit_text("<b>🎴 Ваша коллекция:</b>", reply_markup=InlineKeyboardMarkup(keyboard + [[InlineKeyboardButton("⬅️ Назад", callback_data="menu")]]), parse_mode="HTML")
+            await target.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         else:
-            await target.reply_text("<b>🎴 Ваша коллекция:</b>", reply_markup=InlineKeyboardMarkup(keyboard + [[InlineKeyboardButton("⬅️ Назад", callback_data="menu")]]), parse_mode="HTML")
+            await target.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+# --- Callback: выбор группы, затем альбома ---
+async def inventory_group_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    group = query.data.replace("invgroup_", "")
+    user_id = query.from_user.id
+    pb_user = pb.get_user_by_telegram_id(user_id)
+    cards = pb.get_user_inventory(pb_user["id"])
+    # Группируем по альбомам внутри выбранной группы
+    album_set = set()
+    for c in cards:
+        card = c.get("expand", {}).get("card_id", {})
+        if not card:
+            continue
+        if card.get("group", "-") == group:
+            album_set.add(card.get("album", "-"))
+    keyboard = []
+    for album in sorted(album_set):
+        keyboard.append([InlineKeyboardButton(f"{album}", callback_data=f"invalbum_{group}__{album}")])
+    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="inventory")])
+    text = f"<b>Группа:</b> <b>{group}</b>\nВыберите альбом:"
+    try:
+        if query.message:
+            if query.message.photo:
+                await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+            else:
+                await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception:
+        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+
+# --- Callback: выбор альбома, затем карточки ---
+async def inventory_album_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data.replace("invalbum_", "")
+    group, album = data.split("__", 1)
+    user_id = query.from_user.id
+    pb_user = pb.get_user_by_telegram_id(user_id)
+    cards = pb.get_user_inventory(pb_user["id"])
+    # Список карточек в выбранном альбоме и группе
+    card_buttons = []
+    for c in cards:
+        card = c.get("expand", {}).get("card_id", {})
+        if not card:
+            continue
+        if card.get("group", "-") == group and card.get("album", "-") == album:
+            btn_text = f"{card.get('name', '???')} — {card.get('rarity', '?')}★ ×{c.get('count', 1)}"
+            card_buttons.append([InlineKeyboardButton(btn_text, callback_data=f"showcard_{card.get('id')}")])
+    card_buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data=f"invgroup_{group}")])
+    text = f"<b>Группа:</b> <b>{group}</b>\n<b>Альбом:</b> <b>{album}</b>\nВыберите карточку:"
+    try:
+        if query.message:
+            if query.message.photo:
+                await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(card_buttons))
+            else:
+                await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(card_buttons))
+        else:
+            await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(card_buttons))
+    except Exception:
+        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(card_buttons))
 
 async def showcard_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -700,7 +770,7 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
     keyboard = [
-        [InlineKeyboardButton("�� Профиль", callback_data="profile"), InlineKeyboardButton("🎴 Инвентарь", callback_data="inventory")],
+        [InlineKeyboardButton("👤 Профиль", callback_data="profile"), InlineKeyboardButton("🎴 Инвентарь", callback_data="inventory")],
         [InlineKeyboardButton("🎲 Гача (1)", callback_data="pull"), InlineKeyboardButton("🔟 Гача (10)", callback_data="pull10")],
         [InlineKeyboardButton("🎁 Ежедневка", callback_data="daily"), InlineKeyboardButton("🕓 История", callback_data="history")],
         [InlineKeyboardButton("🎯 Pity", callback_data="pity"), InlineKeyboardButton("🏆 Лидерборд", callback_data="leaderboard")],
@@ -1066,6 +1136,8 @@ def main():
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
+    app.add_handler(CallbackQueryHandler(inventory_group_callback, pattern="^invgroup_"))
+    app.add_handler(CallbackQueryHandler(inventory_album_callback, pattern="^invalbum_"))
     app.run_polling()
 
 if __name__ == "__main__":
