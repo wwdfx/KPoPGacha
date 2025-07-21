@@ -37,64 +37,75 @@ rarity_mapping = {
 # Card data as a raw string
 # To use, paste the tab-separated card data between the triple quotes.
 input_text = """
-Enhypen 	BORDER: CARNIVAL	M2U Lucky Draw	Heeseung	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639256e1226f1b41af1a.png
-Enhypen 	BORDER: CARNIVAL	M2U Lucky Draw	Jay	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639256e43d4122aa2c28.png
-Enhypen 	BORDER: CARNIVAL	M2U Lucky Draw	Jake	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639256e77d3d713d8591.png
-Enhypen 	BORDER: CARNIVAL	M2U Lucky Draw	Sunghoon	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639256eaa98966cfead7.png
-Enhypen 	BORDER: CARNIVAL	M2U Lucky Draw	Sunoo	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639256edc63eb6ce496f.png
-Enhypen 	BORDER: CARNIVAL	M2U Lucky Draw	Jungwon	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639256f0cff27a423c36.png
-Enhypen 	BORDER: CARNIVAL	M2U Lucky Draw	Ni-ki	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639256f3ce3b0040c4ef.png
-					
-					
-Enhypen 	BORDER: HAKANAI	Standart ver	Heeseung	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/644e2f1f3a79683731b5.png
-Enhypen 	BORDER: HAKANAI	Standart ver	Jay	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/644e2ea89d69a719b88a.png
-Enhypen 	BORDER: HAKANAI	Standart ver	Jake	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/67761a3f0002f415979f.png
-Enhypen 	BORDER: HAKANAI	Standart ver	Sunghoon	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/67761a5a0016c64eff9e.png
-Enhypen 	BORDER: HAKANAI	Standart ver	Sunoo	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/67761aa00002a575879f.png
-Enhypen 	BORDER: HAKANAI	Standart ver	Jungwon	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/67761abc0017db0cac6b.png
-Enhypen 	BORDER: HAKANAI	Standart ver	Ni-ki	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd3b14e0d01297117.png
-Enhypen 	BORDER: HAKANAI	Universal Music Store Set	Heeseung	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd4a21d5a7dbe1024.png
-Enhypen 	BORDER: HAKANAI	Universal Music Store Set	Jay	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd4b4d2e62eb7d918.png
-Enhypen 	BORDER: HAKANAI	Universal Music Store Set	Jake	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/67761b2300010bc38ec8.png
-Enhypen 	BORDER: HAKANAI	Universal Music Store Set	Sunghoon	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd4dad3adf9d5aada.png
-Enhypen 	BORDER: HAKANAI	Universal Music Store Set	Sunoo	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd4eb6ae34f7701ad.png
-Enhypen 	BORDER: HAKANAI	Universal Music Store Set	Jungwon	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd4fee758f51ad594.png
-Enhypen 	BORDER: HAKANAI	Universal Music Store Set	Ni-ki	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd51030d3517b9171.png
-Enhypen 	BORDER: HAKANAI	Heeseung ver	Heeseung A	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd56b123828a100f2.png
-Enhypen 	BORDER: HAKANAI	Heeseung ver	Heeseung B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd57db43e1edd405b.png
-Enhypen 	BORDER: HAKANAI	Jay ver	Jay A	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd59c832e58302a1c.png
-Enhypen 	BORDER: HAKANAI	Jay ver	Jay B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd5ae8bc53530205d.png
-Enhypen 	BORDER: HAKANAI	Jake ver	Jake A	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd5c5e475079ef03f.png
-Enhypen 	BORDER: HAKANAI	Jake ver	Jake B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd5d7a52a7be42bde.png
-Enhypen 	BORDER: HAKANAI	Sunghoon ver	Sunghoon A	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd5ef05203366515b.png
-Enhypen 	BORDER: HAKANAI	Sunghoon ver	Sunghoon B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/67761cee000ac967a521.png
-Enhypen 	BORDER: HAKANAI	Sunoo ver	Sunoo A	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd61f4ffac7dcc5b0.png
-Enhypen 	BORDER: HAKANAI	Sunoo ver	Sunoo B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/687b918c002fac695a17.png
-Enhypen 	BORDER: HAKANAI	Jungwon ver	Jungwon A	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd536b450f6dd22ab.png
-Enhypen 	BORDER: HAKANAI	Jungwon ver	Jungwon B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/67761cc2002de989defd.png
-Enhypen 	BORDER: HAKANAI	Ni-ki ver	Ni-ki	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/67761d89002d489bbdea.png
-Enhypen 	BORDER: HAKANAI	Ni-ki ver	Ni-ki	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd66bdda67e659d1d.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Heeseung A	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/677623c200122c00596a.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Heeseung B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddac4c7e93b9c32f2.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Jay A	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddad4030ff2e62725.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Jay B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddae15a3200058636.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Jake A	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddaede0e93269f219.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Jake B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddafb8c16355637a0.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Sunghoon A	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddb0c295a2a6326eb.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Sunghoon B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddb1a7e6c5320582f.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Sunoo A	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddb27eec85fe4659d.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Sunoo B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddb38b3d82ac977e6.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Jungwon A	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddb488eee4a6ba9c7.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Jungwon B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddb55b53dec527b60.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Ni-ki A	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddb6531df4a52f89c.png
-Enhypen 	BORDER: HAKANAI	Weverse/UMS Lucky Draw	Ni-ki B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641ddb71f41842c48f00.png
-Enhypen 	BORDER: HAKANAI	Tower Records Lucky Draw	Heeseung	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd6dfc4f7e1627406.png
-Enhypen 	BORDER: HAKANAI	Tower Records Lucky Draw	Jay	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/683fb6f20010ab24d00e.png
-Enhypen 	BORDER: HAKANAI	Tower Records Lucky Draw	Jake	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd71637764f48c058.png
-Enhypen 	BORDER: HAKANAI	Tower Records Lucky Draw	Sunghoon	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd7332146eccedb0c.png
-Enhypen 	BORDER: HAKANAI	Tower Records Lucky Draw	Sunoo	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/683fb53f0010bcd89142.png
-Enhypen 	BORDER: HAKANAI	Tower Records Lucky Draw	Jungwon	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd768f388421bdbbe.png
-Enhypen 	BORDER: HAKANAI	Tower Records Lucky Draw	Ni-ki	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/641dd77c84606f28867c.png
+Enhypen 	DIMENSION: DILEMMA 	Scylla ver	Heeseung	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639253df9b08d7b65b32.png
+Enhypen 	DIMENSION: DILEMMA 	Scylla ver	Jay	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639253e1271b999fc15d.png
+Enhypen 	DIMENSION: DILEMMA 	Scylla ver	Jake	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639253e29c396d041b03.png
+Enhypen 	DIMENSION: DILEMMA 	Scylla ver	Sunghoon	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639253e42d1ebbd90071.png
+Enhypen 	DIMENSION: DILEMMA 	Scylla ver	Sunoo	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639253e5df7e4ffde63d.png
+Enhypen 	DIMENSION: DILEMMA 	Scylla ver	Jungwon	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639253e7afd3331b167b.png
+Enhypen 	DIMENSION: DILEMMA 	Scylla ver	Ni-ki	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639253e951ab7d2fc2f2.png
+Enhypen 	DIMENSION: DILEMMA 	Scylla ver	Group	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392639fc0b5d5fbb520.png
+Enhypen 	DIMENSION: DILEMMA 	Odysseus ver	Heeseung	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925230850adab9288b.png
+Enhypen 	DIMENSION: DILEMMA 	Odysseus ver	Jay	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392525d19827db85332.png
+Enhypen 	DIMENSION: DILEMMA 	Odysseus ver	Jake	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/67771dc0001cbabd0956.png
+Enhypen 	DIMENSION: DILEMMA 	Odysseus ver	Sunghoon	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392526021dd5d4e02e9.png
+Enhypen 	DIMENSION: DILEMMA 	Odysseus ver	Sunoo	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925261aa701b04666a.png
+Enhypen 	DIMENSION: DILEMMA 	Odysseus ver	Jungwon	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392526331e29866e0cc.png
+Enhypen 	DIMENSION: DILEMMA 	Odysseus ver	Ni-ki	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925264cd592510cd26.png
+Enhypen 	DIMENSION: DILEMMA 	Odysseus ver	Group	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639263a1be80a3072384.png
+Enhypen 	DIMENSION: DILEMMA 	Charybdis ver	Heeseung	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639254009b1a1dc59c69.png
+Enhypen 	DIMENSION: DILEMMA 	Charybdis ver	Jay	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639254022ac1eb08ab8b.png
+Enhypen 	DIMENSION: DILEMMA 	Charybdis ver	Jake	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925403c370316e8498.png
+Enhypen 	DIMENSION: DILEMMA 	Charybdis ver	Sunghoon	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925405cda464f22852.png
+Enhypen 	DIMENSION: DILEMMA 	Charybdis ver	Sunoo	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639254076a4766c0e9e5.png
+Enhypen 	DIMENSION: DILEMMA 	Charybdis ver	Jungwon	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925408cfb3f56a7308.png
+Enhypen 	DIMENSION: DILEMMA 	Charybdis ver	Ni-ki	Обычная	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392540a6e2dcd7017e9.png
+Enhypen 	DIMENSION: DILEMMA 	Charybdis ver	Group	Редкая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639263a35f355c14e3ca.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Heeseung A	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639252363e244b0e0983.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Heeseung B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925237cb159119e549.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Heeseung C	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392523972d47ada4a36.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Jay A	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925257b2f24badae34.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Jay B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392541c611dc4fc08db.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Jay C	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392542eb03129733f87.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Jake A	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925259d67fcff8f5c7.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Jake B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392541dcdc736004bca.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Jake C	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639254303d49cd1c9dc6.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Sunghoon A	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392525b90cba8195337.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Sunghoon B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392541f5145e2524219.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Sunghoon C	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639254303d49cd1c9dc6.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Sunoo A	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925417a47724ea6cb0.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Sunoo B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639254209e005f80f897.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Sunoo C	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392543366001326aa3d.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Jungwon A	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639254194d97305e4a66.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Jungwon B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392542225d9aa5506fe.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Jungwon C	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63925434e5839ccfa42e.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Ni-ki A	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392541ad0cb94289b77.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Ni-ki B	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639254239bf79fc46559.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Ni-ki C	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6392543667dd097a8331.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Group A	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639263a53222061c4911.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Group B	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639263a8016be819478d.png
+Enhypen 	DIMENSION: DILEMMA 	Essential ver	Group C	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639263a9dcc434b6d27e.png
+Enhypen 	DIMENSION: DILEMMA 	Apple Music Postcard	Heeseung	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639265cda8525cc4a7f0.png
+Enhypen 	DIMENSION: DILEMMA 	Apple Music Postcard	Jay	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639265cf1c39b0386ff4.png
+Enhypen 	DIMENSION: DILEMMA 	Apple Music Postcard	Jake	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639265d08f6dc0e6dc7f.png
+Enhypen 	DIMENSION: DILEMMA 	Apple Music Postcard	Sunghoon	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639265d64edec56a4f05.png
+Enhypen 	DIMENSION: DILEMMA 	Apple Music Postcard	Sunoo	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/677618fe0006807ce323.png
+Enhypen 	DIMENSION: DILEMMA 	Apple Music Postcard	Jungwon	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/677618fe0006807ce323.png
+Enhypen 	DIMENSION: DILEMMA 	Apple Music Postcard	Ni-ki	Полая	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/639265dc24056e2e1086.png
+Enhypen 	DIMENSION: DILEMMA 	Shopee	Heeseung 	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/6427626c35f16bb9558d.png
+Enhypen 	DIMENSION: DILEMMA 	Shopee	Jay	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/642762a59165383cccaf.png
+Enhypen 	DIMENSION: DILEMMA 	Shopee	Jake	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/642762b784524199c7fc.png
+Enhypen 	DIMENSION: DILEMMA 	Shopee	Sunghoon	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/642762c5e857568d5283.png
+Enhypen 	DIMENSION: DILEMMA 	Shopee	Sunoo	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/677618ab001732779c15.png
+Enhypen 	DIMENSION: DILEMMA 	Shopee	Jungwon	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/642762f5d614960c2b67.png
+Enhypen 	DIMENSION: DILEMMA 	Shopee	Ni-ki	Легендарная 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/642763047c65ce48163d.png
+Enhypen 	DIMENSION: DILEMMA 	Naver Shopping Live	Heeseung	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63926e7a95f9342d8207.png
+Enhypen 	DIMENSION: DILEMMA 	Naver Shopping Live	Jay	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63926e7c816387ed6f6b.png
+Enhypen 	DIMENSION: DILEMMA 	Naver Shopping Live	Jake	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63926e7e48010bfd5b38.png
+Enhypen 	DIMENSION: DILEMMA 	Naver Shopping Live	Sunghoon	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63926e7fdb43c0fe5d18.png
+Enhypen 	DIMENSION: DILEMMA 	Naver Shopping Live	Sunoo	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63926e8176b4d8bc071c.png
+Enhypen 	DIMENSION: DILEMMA 	Naver Shopping Live	Jungwon	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63926e8355e01935ec1f.png
+Enhypen 	DIMENSION: DILEMMA 	Naver Shopping Live	Ni-ki	Эпическая 	https://i.kcollect.net/storage/uploads/app-6376c6832c5255be695a/639079e36d9e6206db27/63926e85081579ab63af.png
 """
 
 def parse_input_to_cards(text):

@@ -476,6 +476,9 @@ async def inventory_group_callback(update: Update, context: ContextTypes.DEFAULT
 # --- Callback: выбор альбома, затем карточки ---
 async def inventory_album_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    if query.data == "none":
+        await query.answer("У вас нет этой карточки!", show_alert=True)
+        return
     await query.answer()
     data = query.data.replace("invalbum_", "")
     group, album = data.split("__", 1)
