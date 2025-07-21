@@ -1357,42 +1357,8 @@ async def banner_reset_callback(update: Update, context: ContextTypes.DEFAULT_TY
     await query.edit_message_text("🌐 Баннер сброшен. Теперь пуллы идут по всем картам!", parse_mode="HTML", reply_markup=back_keyboard())
     return ConversationHandler.END
 
-# --- ConversationHandler для баннера ---
-banner_conv = ConversationHandler(
-    entry_points=[
-        CommandHandler("banner", banner_start),
-        CallbackQueryHandler(banner_start, pattern="^banner$"),
-        CallbackQueryHandler(banner_group_callback, pattern="^banner_group_.*"),
-        CallbackQueryHandler(banner_album_callback, pattern="^banner_album_.*"),
-        CallbackQueryHandler(banner_confirm_callback, pattern="^banner_confirm$"),
-        CallbackQueryHandler(banner_reset_callback, pattern="^banner_reset$")
-    ],
-    states={
-        BANNER_GROUP: [CallbackQueryHandler(banner_group_callback, pattern="^banner_group_.*")],
-        BANNER_ALBUM: [CallbackQueryHandler(banner_album_callback, pattern="^banner_album_.*")],
-        BANNER_CONFIRM: [CallbackQueryHandler(banner_confirm_callback, pattern="^banner_confirm$")],
-    },
-    fallbacks=[CallbackQueryHandler(banner_reset_callback, pattern="^banner_reset$")],
-)
-
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("profile", profile))
-    app.add_handler(CommandHandler("pull", pull))
-    app.add_handler(CommandHandler("pull10", pull10))
-    app.add_handler(CommandHandler("inventory", inventory))
-    app.add_handler(CommandHandler("daily", daily))
-    app.add_handler(CommandHandler("history", history))
-    app.add_handler(CommandHandler("pity", pity))
-    app.add_handler(CommandHandler("leaderboard", leaderboard))
-    app.add_handler(CommandHandler("settings", settings))
-    app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CommandHandler("auctions", auctions))
-    app.add_handler(CommandHandler("drop100", drop100))
-    app.add_handler(CommandHandler("achievements", achievements))
-    app.add_handler(CommandHandler("senddailybonus", send_daily_bonus_links))
     addcard_conv = ConversationHandler(
         entry_points=[CommandHandler("addcard", addcard_start)],
         states={
@@ -1438,13 +1404,27 @@ def main():
         },
         fallbacks=[CallbackQueryHandler(showcard_callback, pattern="^showcard_")],
     )
-    # --- Сначала inventory_group и album, потом menu_callback, остальные как были ---
-    app.add_handler(addcard_conv)
-    app.add_handler(auction_conv)
-    app.add_handler(promo_conv)
-    app.add_handler(addpromo_conv)
-    app.add_handler(exchange_conv)
-    app.add_handler(banner_conv)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("profile", profile))
+    app.add_handler(CommandHandler("pull", pull))
+    app.add_handler(CommandHandler("pull10", pull10))
+    app.add_handler(CommandHandler("inventory", inventory))
+    app.add_handler(CommandHandler("daily", daily))
+    app.add_handler(CommandHandler("history", history))
+    app.add_handler(CommandHandler("pity", pity))
+    app.add_handler(CommandHandler("leaderboard", leaderboard))
+    app.add_handler(CommandHandler("settings", settings))
+    app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("auctions", auctions))
+    app.add_handler(CommandHandler("drop100", drop100))
+    app.add_handler(CommandHandler("achievements", achievements))
+    app.add_handler(CommandHandler("senddailybonus", send_daily_bonus_links))
+    app.add_handler(CommandHandler("banner", banner_start))
+    app.add_handler(CallbackQueryHandler(banner_group_callback, pattern="^banner_group_"))
+    app.add_handler(CallbackQueryHandler(banner_album_callback, pattern="^banner_album_"))
+    app.add_handler(CallbackQueryHandler(banner_confirm_callback, pattern="^banner_confirm$"))
+    app.add_handler(CallbackQueryHandler(banner_reset_callback, pattern="^banner_reset$"))
     app.add_handler(CallbackQueryHandler(inventory_group_callback, pattern="^invgroup_"))
     app.add_handler(CallbackQueryHandler(inventory_album_callback, pattern="^invalbum_"))
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
@@ -1452,6 +1432,11 @@ def main():
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
+    app.add_handler(addcard_conv)
+    app.add_handler(auction_conv)
+    app.add_handler(promo_conv)
+    app.add_handler(addpromo_conv)
+    app.add_handler(exchange_conv)
     app.run_polling()
 
 if __name__ == "__main__":
