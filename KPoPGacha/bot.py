@@ -880,6 +880,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎁 Ежедневка", callback_data="daily"), InlineKeyboardButton("🕓 История", callback_data="history")],
         [InlineKeyboardButton("🎯 Pity", callback_data="pity"), InlineKeyboardButton("🏆 Лидерборд", callback_data="leaderboard")],
         [InlineKeyboardButton("🛒 Аукцион", callback_data="auctions")],
+        [InlineKeyboardButton("🏅 Достижения", callback_data="achievements")],
         [InlineKeyboardButton("⚙️ Настройки", callback_data="settings")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -894,7 +895,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-    # Добавлено: обработка кнопки 'Назад' (data == 'menu')
     if data == "menu":
         await menu(update, context)
         return
@@ -918,6 +918,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await settings(update, context)
     elif data == "auctions":
         await auctions(update, context)
+    elif data == "achievements":
+        await achievements(update, context)
     else:
         await query.edit_message_text("Неизвестная команда.")
 
@@ -1171,6 +1173,34 @@ async def showcard_refresh_callback(update: Update, context: ContextTypes.DEFAUL
     else:
         await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
 
+async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    if not pb_user:
+        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        return
+    achs = []
+    # Получаем все достижения пользователя
+    url = f"{pb.base_url}/collections/collection_achievements/records"
+    params = {"filter": f'user_id="{pb_user["id"]}"', "perPage": 200}
+    import httpx
+    resp = httpx.get(url, headers=pb.headers, params=params)
+    resp.raise_for_status()
+    items = resp.json().get("items", [])
+    if not items:
+        await update.message.reply_text("У вас пока нет достижений по коллекциям.")
+        return
+    # Группируем по группе и альбому
+    items.sort(key=lambda x: (x.get("group", ""), x.get("album", "")))
+    text = "<b>🏅 Ваши достижения по коллекциям:</b>\n"
+    for ach in items:
+        group = ach.get("group", "-")
+        album = ach.get("album", "-")
+        level = ach.get("level", 0)
+        if level > 0:
+            text += f"\n<b>{group}</b> — <b>{album}</b>: <b>{level*25}%</b>"
+    await update.message.reply_text(text, parse_mode="HTML")
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -1187,6 +1217,7 @@ def main():
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("auctions", auctions))
     app.add_handler(CommandHandler("drop100", drop100))
+    app.add_handler(CommandHandler("achievements", achievements))
     addcard_conv = ConversationHandler(
         entry_points=[CommandHandler("addcard", addcard_start)],
         states={
