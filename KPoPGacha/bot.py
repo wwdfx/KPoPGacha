@@ -1359,7 +1359,14 @@ async def banner_reset_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 # --- ConversationHandler для баннера ---
 banner_conv = ConversationHandler(
-    entry_points=[CommandHandler("banner", banner_start), CallbackQueryHandler(banner_start, pattern="^banner$")],
+    entry_points=[
+        CommandHandler("banner", banner_start),
+        CallbackQueryHandler(banner_start, pattern="^banner$"),
+        CallbackQueryHandler(banner_group_callback, pattern="^banner_group_.*"),
+        CallbackQueryHandler(banner_album_callback, pattern="^banner_album_.*"),
+        CallbackQueryHandler(banner_confirm_callback, pattern="^banner_confirm$"),
+        CallbackQueryHandler(banner_reset_callback, pattern="^banner_reset$")
+    ],
     states={
         BANNER_GROUP: [CallbackQueryHandler(banner_group_callback, pattern="^banner_group_.*")],
         BANNER_ALBUM: [CallbackQueryHandler(banner_album_callback, pattern="^banner_album_.*")],
@@ -1437,6 +1444,7 @@ def main():
     app.add_handler(promo_conv)
     app.add_handler(addpromo_conv)
     app.add_handler(exchange_conv)
+    app.add_handler(banner_conv)
     app.add_handler(CallbackQueryHandler(inventory_group_callback, pattern="^invgroup_"))
     app.add_handler(CallbackQueryHandler(inventory_album_callback, pattern="^invalbum_"))
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
@@ -1444,7 +1452,6 @@ def main():
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
-    app.add_handler(banner_conv)
     app.run_polling()
 
 if __name__ == "__main__":
