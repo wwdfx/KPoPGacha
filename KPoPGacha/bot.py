@@ -459,15 +459,18 @@ async def inventory_album_callback(update: Update, context: ContextTypes.DEFAULT
     user_id = query.from_user.id
     pb_user = pb.get_user_by_telegram_id(user_id)
     cards = pb.get_user_inventory(pb_user["id"])
-    # Список карточек в выбранном альбоме и группе
+    # Список карточек в выбранном альбоме и группе, сортировка по редкости (от 6 до 1)
+    filtered_cards = [
+        c for c in cards
+        if c.get("expand", {}).get("card_id", {}).get("group", "-") == group and c.get("expand", {}).get("card_id", {}).get("album", "-") == album
+    ]
+    # Сортируем по убыванию редкости
+    filtered_cards.sort(key=lambda c: c.get("expand", {}).get("card_id", {}).get("rarity", 1), reverse=True)
     card_buttons = []
-    for c in cards:
+    for c in filtered_cards:
         card = c.get("expand", {}).get("card_id", {})
-        if not card:
-            continue
-        if card.get("group", "-") == group and card.get("album", "-") == album:
-            btn_text = f"{card.get('name', '???')} — {card.get('rarity', '?')}★ ×{c.get('count', 1)}"
-            card_buttons.append([InlineKeyboardButton(btn_text, callback_data=f"showcard_{card.get('id')}")])
+        btn_text = f"{card.get('name', '???')} — {card.get('rarity', '?')}★ ×{c.get('count', 1)}"
+        card_buttons.append([InlineKeyboardButton(btn_text, callback_data=f"showcard_{card.get('id')}")])
     card_buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data=f"invgroup_{group}")])
     text = f"<b>Группа:</b> <b>{group}</b>\n<b>Альбом:</b> <b>{album}</b>\nВыберите карточку:"
     try:
