@@ -11,6 +11,8 @@ from telegram.ext import ConversationHandler, MessageHandler, filters
 from collections import defaultdict
 import httpx
 import asyncio
+from telegram.constants import ParseMode
+import uuid
 
 pb = PBClient()
 
@@ -162,6 +164,27 @@ def back_keyboard():
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data="menu")]])
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    args = context.args
+    if args and args[0].startswith("bonus_"):
+        from config import DAILY_BONUS_REWARD
+        try:
+            _, tg_id, token = args[0].split("_", 2)
+        except Exception:
+            await update.message.reply_text("Некорректная бонус-ссылка.")
+            return
+        pb_user = pb.get_user_by_telegram_id(tg_id)
+        if not pb_user:
+            await update.message.reply_text("Пользователь не найден.")
+            return
+        ok = pb.check_and_consume_daily_bonus(pb_user["id"], token)
+        if ok:
+            new_stars = pb_user.get("stars", 0) + DAILY_BONUS_REWARD
+            pb.update_user_stars_and_pity(pb_user["id"], new_stars, pb_user.get("pity_legendary", 0), pb_user.get("pity_void", 0))
+            await update.message.reply_text(f"🎁 Вы получили {DAILY_BONUS_REWARD} звёзд за ежедневный бонус!")
+        else:
+            await update.message.reply_text("Бонус уже получен или ссылка неактивна.")
+        return
     target = get_reply_target(update)
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
@@ -1205,6 +1228,35 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await target.reply_text(text, parse_mode="HTML")
 
+async def send_daily_bonus_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Только для администратора.")
+        return
+    import uuid
+    pb = PBClient()
+    bot = context.bot
+    bot_username = 'kpop_gacha_bot'  # или получи через await bot.get_me()
+    users = pb.get_all_users()
+    count = 0
+    for user in users:
+        user_id = user["id"]
+        tg_id = user["telegram_id"]
+        token = str(uuid.uuid4())
+        pb.set_daily_bonus_token(user_id, token)
+        link = f"https://t.me/{bot_username}?start=bonus_{tg_id}_{token}"
+        try:
+            await bot.send_message(
+                chat_id=int(tg_id),
+                text=f"🌟 Ваш ежедневный бонус! Жмите на кнопку ниже, чтобы получить 25 звёзд!",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Получить бонус', url=link)]]),
+                parse_mode=ParseMode.HTML
+            )
+            count += 1
+        except Exception as e:
+            print(f"Не удалось отправить бонус пользователю {tg_id}: {e}")
+    await update.message.reply_text(f"✅ Бонусные ссылки отправлены {count} пользователям.")
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -1222,6 +1274,7 @@ def main():
     app.add_handler(CommandHandler("auctions", auctions))
     app.add_handler(CommandHandler("drop100", drop100))
     app.add_handler(CommandHandler("achievements", achievements))
+    app.add_handler(CommandHandler("senddailybonus", send_daily_bonus_links))
     addcard_conv = ConversationHandler(
         entry_points=[CommandHandler("addcard", addcard_start)],
         states={

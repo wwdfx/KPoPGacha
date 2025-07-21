@@ -14,3 +14,5 @@ ACHIEVEMENT_REWARDS = {
     3: {"exp": 650, "stars": 650},
     4: {"exp": 900, "stars": 900},
 } 
+
+DAILY_BONUS_REWARD = 100

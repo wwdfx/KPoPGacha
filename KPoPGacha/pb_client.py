@@ -327,4 +327,26 @@ class PBClient:
         params = {"perPage": 500}
         resp = httpx.get(url, headers=self.headers, params=params)
         resp.raise_for_status()
-        return resp.json().get("items", []) 
+        return resp.json().get("items", [])
+
+    def set_daily_bonus_token(self, user_id, token):
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        from datetime import datetime, timezone
+        data = {"daily_bonus_token": token, "daily_bonus_date": datetime.now(timezone.utc).date().isoformat()}
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def check_and_consume_daily_bonus(self, user_id, token):
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        resp = httpx.get(url, headers=self.headers)
+        resp.raise_for_status()
+        user = resp.json()
+        from datetime import datetime, timezone
+        today = datetime.now(timezone.utc).date().isoformat()
+        if user.get("daily_bonus_token") == token and user.get("daily_bonus_date") == today:
+            # Сбросить токен, выдать бонус
+            patch = {"daily_bonus_token": "", "daily_bonus_date": today}
+            httpx.patch(url, headers=self.headers, json=patch)
+            return True
+        return False 
