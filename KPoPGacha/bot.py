@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 from pb_client import PBClient
-from config import TELEGRAM_BOT_TOKEN, ADMIN_IDS
+from config import TELEGRAM_BOT_TOKEN, ADMIN_IDS, TELEGRAM_AUCTION_CHANNEL_ID
 import random
 import os
 import tempfile
@@ -584,6 +584,48 @@ async def auction_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         new_count = user_card.get("count", 1) - 1
         httpx.patch(url, headers=pb.headers, json={"count": new_count})
     pb.create_auction(data["card_id"], pb_user["id"], data["price"], data["duration"])
+    # --- Отправка сообщения в канал ---
+    # Получаем карточку
+    url = f"{pb.base_url}/collections/cards/records/{data['card_id']}"
+    resp = requests.get(url, headers=pb.headers)
+    card = resp.json() if resp.status_code == 200 else {}
+    overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
+    seller_name = pb_user.get("name", "?")
+    text = (
+        f"<b>🛒 Новый лот на аукционе!</b>\n"
+        f"<b>{card.get('name', '???')}</b>\n"
+        f"Группа: <b>{card.get('group', '-')}</b>\n"
+        f"Альбом: <b>{card.get('album', '-')}</b>\n"
+        f"Редкость: <b>{card.get('rarity', '?')}★</b>\n"
+        f"Цена: <b>{data['price']}⭐</b>\n"
+        f"Срок: <b>{data['duration']} ч.</b>\n"
+        f"Продавец: <b>{seller_name}</b>"
+    )
+    try:
+        if overlayed_path:
+            with open(overlayed_path, "rb") as img_file:
+                await context.bot.send_photo(
+                    chat_id=TELEGRAM_AUCTION_CHANNEL_ID,
+                    photo=img_file,
+                    caption=text,
+                    parse_mode="HTML"
+                )
+            os.unlink(overlayed_path)
+        elif card.get("image_url"):
+            await context.bot.send_photo(
+                chat_id=TELEGRAM_AUCTION_CHANNEL_ID,
+                photo=card.get("image_url"),
+                caption=text,
+                parse_mode="HTML"
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=TELEGRAM_AUCTION_CHANNEL_ID,
+                text=text,
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        print(f"[AUCTION CHANNEL ERROR] {e}")
     await query.edit_message_text("✅ Карточка выставлена на аукцион!")
     auction_data.pop(user_id, None)
     return ConversationHandler.END
