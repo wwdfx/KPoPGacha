@@ -1316,7 +1316,12 @@ async def banner_group_callback(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     group = query.data.replace("banner_group_", "")
     all_cards = pb.get_all_cards()
-    album_set = set(c.get("album", "-") for c in all_cards if c.get("group") == group and c.get("album"))
+    group_norm = group.strip().lower()
+    album_set = set(
+        c.get("album", "-")
+        for c in all_cards
+        if c.get("group") and c.get("group").strip().lower() == group_norm and c.get("album")
+    )
     keyboard = [[InlineKeyboardButton(a, callback_data=f"banner_album_{group}__{a}")] for a in sorted(album_set)]
     keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="banner")])
     await query.edit_message_text(f"<b>Группа:</b> <b>{group}</b>\nВыберите альбом:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
