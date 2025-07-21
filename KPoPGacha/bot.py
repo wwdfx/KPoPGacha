@@ -1176,8 +1176,9 @@ async def showcard_refresh_callback(update: Update, context: ContextTypes.DEFAUL
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
+    target = get_reply_target(update, prefer_edit=hasattr(update, 'callback_query') and update.callback_query is not None)
     if not pb_user:
-        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        await target.reply_text("Профиль не найден. Используйте /start.")
         return
     achs = []
     # Получаем все достижения пользователя
@@ -1188,7 +1189,7 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     resp.raise_for_status()
     items = resp.json().get("items", [])
     if not items:
-        await update.message.reply_text("У вас пока нет достижений по коллекциям.")
+        await target.reply_text("У вас пока нет достижений по коллекциям.")
         return
     # Группируем по группе и альбому
     items.sort(key=lambda x: (x.get("group", ""), x.get("album", "")))
@@ -1199,7 +1200,10 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
         level = ach.get("level", 0)
         if level > 0:
             text += f"\n<b>{group}</b> — <b>{album}</b>: <b>{level*25}%</b>"
-    await update.message.reply_text(text, parse_mode="HTML")
+    if hasattr(target, 'edit_text'):
+        await target.edit_text(text, parse_mode="HTML")
+    else:
+        await target.reply_text(text, parse_mode="HTML")
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
