@@ -1317,6 +1317,10 @@ async def banner_group_callback(update: Update, context: ContextTypes.DEFAULT_TY
     group = query.data.replace("banner_group_", "")
     all_cards = pb.get_all_cards()
     group_norm = group.strip().lower()
+    print(f"DEBUG: Все карточки группы {group}")
+    for c in all_cards:
+        if c.get("group") and c.get("group").strip().lower() == group_norm:
+            print("  Альбом:", repr(c.get("album")))
     album_set = set(
         c.get("album", "-")
         for c in all_cards

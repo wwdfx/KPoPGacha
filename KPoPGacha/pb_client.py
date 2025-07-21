@@ -53,7 +53,8 @@ class PBClient:
 
     def get_all_cards(self):
         url = f"{self.base_url}/collections/cards/records"
-        resp = httpx.get(url, headers=self.headers)
+        params = {"perPage": 500}
+        resp = httpx.get(url, headers=self.headers, params=params)
         resp.raise_for_status()
         return resp.json().get("items", [])
 
