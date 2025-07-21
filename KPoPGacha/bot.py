@@ -43,6 +43,8 @@ PROMO_ENTER, = range(20, 21)
 
 EXCHANGE_SELECT, EXCHANGE_CONFIRM = range(40, 42)
 
+BANNER_GROUP, BANNER_ALBUM, BANNER_CONFIRM = range(50, 53)
+
 async def promo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
     await target.reply_text("Введите промокод:")
@@ -228,6 +230,11 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
         return
     rank = pb.get_rank(pb_user.get('level', 1))
+    group, album = pb.get_active_banner(pb_user)
+    if group and album:
+        banner_str = f"<b>Баннер:</b> <i>{group} — {album}</i>"
+    else:
+        banner_str = "<b>Баннер:</b> <i>Общий (все карты)</i>"
     text = (
         f"<b>👤 Профиль:</b>\n"
         f"<b>Имя:</b> {pb_user.get('name', '')}\n"
@@ -235,7 +242,8 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<b>Опыт:</b> {pb_user.get('exp', 0)} / {pb.exp_to_next_level(pb_user.get('level', 1))}\n"
         f"<b>⭐ Звёзды:</b> {pb_user.get('stars', 0)}\n"
         f"<b>🎯 Pity Legendary:</b> {pb_user.get('pity_legendary', 0)} / 80\n"
-        f"<b>🕳️ Pity Void:</b> {pb_user.get('pity_void', 0)} / 165"
+        f"<b>🕳️ Pity Void:</b> {pb_user.get('pity_void', 0)} / 165\n"
+        f"{banner_str}"
     )
     if target:
         if prefer_edit:
@@ -291,10 +299,17 @@ async def pull_once(user, pb_user, update, pull_type="single"):
         return
 
     rarity = choose_rarity(pity_legendary, pity_void)
-    card = pb.get_random_card_by_rarity(rarity)
+    # --- Баннер ---
+    group, album = pb.get_active_banner(pb_user)
+    if group and album:
+        all_cards = pb.get_cards_by_group_album(group, album)
+        cards_of_rarity = [c for c in all_cards if c.get("rarity") == rarity]
+        card = random.choice(cards_of_rarity) if cards_of_rarity else None
+    else:
+        card = pb.get_random_card_by_rarity(rarity)
     if not card:
         if target:
-            await target.reply_text(f"Нет карточек с редкостью {rarity}★ в базе!", parse_mode="HTML")
+            await target.reply_text(f"Нет карточек с редкостью {rarity}★ в выбранном баннере!", parse_mode="HTML")
         return
 
     # Pity-счётчики
@@ -321,7 +336,11 @@ async def pull_once(user, pb_user, update, pull_type="single"):
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
 
     # Ответ пользователю
-    text = f"<b>Выпала карта:</b> <b>{card['name']}</b> (<i>{card['group']}</i>)\n<b>Редкость:</b> <b>{card['rarity']}★</b>\n<b>+{base_exp} опыта</b>"
+    banner_text = f"<b>Баннер:</b> <i>{group} — {album}</i>\n" if group and album else ""
+    text = (
+        f"{banner_text}<b>Выпала карта:</b> <b>{card['name']}</b> (<i>{card['group']}</i>)\n"
+        f"<b>Редкость:</b> <b>{card['rarity']}★</b>\n<b>+{base_exp} опыта</b>"
+    )
     if is_first:
         text += " <i>(первое получение, бонус +50%)</i>"
     if levelup:
@@ -363,11 +382,18 @@ async def pull10_impl(user, pb_user, update):
     levelup = False
     media = []
     captions = []
+    group, album = pb.get_active_banner(pb_user)
+    banner_text = f"<b>Баннер:</b> <i>{group} — {album}</i>\n" if group and album else ""
     for i in range(10):
         rarity = choose_rarity(pity_legendary, pity_void)
-        card = pb.get_random_card_by_rarity(rarity)
+        if group and album:
+            all_cards = pb.get_cards_by_group_album(group, album)
+            cards_of_rarity = [c for c in all_cards if c.get("rarity") == rarity]
+            card = random.choice(cards_of_rarity) if cards_of_rarity else None
+        else:
+            card = pb.get_random_card_by_rarity(rarity)
         if not card:
-            results.append(f"{i+1}. Нет карточек с редкостью {rarity}★!")
+            results.append(f"{i+1}. Нет карточек с редкостью {rarity}★ в выбранном баннере!")
             continue
         if rarity == 6:
             pity_void = 0
@@ -385,8 +411,8 @@ async def pull10_impl(user, pb_user, update):
         exp_gain = base_exp + (base_exp // 2 if is_first else 0)
         total_exp += exp_gain
         caption = (
-            f"<b>{card['name']}</b> (<i>{card['group']}</i>)\n"
-            f"Альбом: <b>{card.get('album', '-')}</b>\n"
+            f"{banner_text}<b>{card['name']}</b> (<i>{card['group']}</i>)\n"
+            f"Альбом: <b>{card.get('album', '-') if card.get('album') else '-'}</b>\n"
             f"Редкость: <b>{card['rarity']}★</b> <b>+{exp_gain} опыта</b>"
         )
         if is_first:
@@ -897,6 +923,13 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
+    user = update.effective_user if hasattr(update, 'effective_user') else None
+    pb_user = pb.get_user_by_telegram_id(user.id) if user else None
+    group, album = pb.get_active_banner(pb_user) if pb_user else (None, None)
+    if group and album:
+        banner_str = f"<b>Баннер:</b> <i>{group} — {album}</i>"
+    else:
+        banner_str = "<b>Баннер:</b> <i>Общий (все карты)</i>"
     keyboard = [
         [InlineKeyboardButton("👤 Профиль", callback_data="profile"), InlineKeyboardButton("🎴 Инвентарь", callback_data="inventory")],
         [InlineKeyboardButton("🎲 Гача (1)", callback_data="pull"), InlineKeyboardButton("🔟 Гача (10)", callback_data="pull10")],
@@ -904,15 +937,17 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎯 Pity", callback_data="pity"), InlineKeyboardButton("🏆 Лидерборд", callback_data="leaderboard")],
         [InlineKeyboardButton("🛒 Аукцион", callback_data="auctions")],
         [InlineKeyboardButton("🏅 Достижения", callback_data="achievements")],
+        [InlineKeyboardButton("🎤 Баннер", callback_data="banner")],
         [InlineKeyboardButton("⚙️ Настройки", callback_data="settings")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     target = get_reply_target(update, prefer_edit=prefer_edit)
+    menu_text = f"<b>Главное меню:</b>\n{banner_str}"
     if target:
         if prefer_edit:
-            await target.edit_text("<b>Главное меню:</b>", reply_markup=reply_markup, parse_mode="HTML")
+            await target.edit_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
         else:
-            await target.reply_text("<b>Главное меню:</b>", reply_markup=reply_markup, parse_mode="HTML")
+            await target.reply_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -943,6 +978,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await auctions(update, context)
     elif data == "achievements":
         await achievements(update, context)
+    elif data == "banner":
+        await banner_start(update, context)
     else:
         await query.edit_message_text("Неизвестная команда.")
 
@@ -1257,6 +1294,78 @@ async def send_daily_bonus_links(update: Update, context: ContextTypes.DEFAULT_T
             print(f"Не удалось отправить бонус пользователю {tg_id}: {e}")
     await update.message.reply_text(f"✅ Бонусные ссылки отправлены {count} пользователям.")
 
+async def banner_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    if not pb_user:
+        await update.message.reply_text("Профиль не найден. Используйте /start.")
+        return ConversationHandler.END
+    # Получаем все уникальные группы
+    all_cards = pb.get_all_cards()
+    group_set = set(c.get("group", "-") for c in all_cards if c.get("group"))
+    keyboard = [[InlineKeyboardButton(g, callback_data=f"banner_group_{g}")] for g in sorted(group_set)]
+    keyboard.append([InlineKeyboardButton("🌐 Общий баннер (все карты)", callback_data="banner_reset")])
+    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="menu")])
+    await update.message.reply_text("<b>Выберите группу для баннера:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    return BANNER_GROUP
+
+async def banner_group_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    group = query.data.replace("banner_group_", "")
+    all_cards = pb.get_all_cards()
+    album_set = set(c.get("album", "-") for c in all_cards if c.get("group") == group and c.get("album"))
+    keyboard = [[InlineKeyboardButton(a, callback_data=f"banner_album_{group}__{a}")] for a in sorted(album_set)]
+    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="banner")])
+    await query.edit_message_text(f"<b>Группа:</b> <b>{group}</b>\nВыберите альбом:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    return BANNER_ALBUM
+
+async def banner_album_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data.replace("banner_album_", "")
+    group, album = data.split("__", 1)
+    context.user_data["banner"] = {"group": group, "album": album}
+    keyboard = [
+        [InlineKeyboardButton(f"✅ Крутить только {album} ({group})", callback_data="banner_confirm")],
+        [InlineKeyboardButton("⬅️ Назад", callback_data=f"banner_group_{group}")]
+    ]
+    await query.edit_message_text(f"Вы выбрали баннер: <b>{group}</b> — <b>{album}</b>\nПодтвердите выбор:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    return BANNER_CONFIRM
+
+async def banner_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    banner = context.user_data.get("banner")
+    if not banner:
+        await query.edit_message_text("Ошибка выбора баннера.")
+        return ConversationHandler.END
+    pb.set_active_banner(pb_user["id"], banner["group"], banner["album"])
+    await query.edit_message_text(f"✅ Теперь ваши пуллы будут только по альбому <b>{banner['album']}</b> группы <b>{banner['group']}</b>!", parse_mode="HTML", reply_markup=back_keyboard())
+    return ConversationHandler.END
+
+async def banner_reset_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    pb.reset_active_banner(pb_user["id"])
+    await query.edit_message_text("🌐 Баннер сброшен. Теперь пуллы идут по всем картам!", parse_mode="HTML", reply_markup=back_keyboard())
+    return ConversationHandler.END
+
+# --- ConversationHandler для баннера ---
+banner_conv = ConversationHandler(
+    entry_points=[CommandHandler("banner", banner_start), CallbackQueryHandler(banner_start, pattern="^banner$")],
+    states={
+        BANNER_GROUP: [CallbackQueryHandler(banner_group_callback, pattern="^banner_group_.*")],
+        BANNER_ALBUM: [CallbackQueryHandler(banner_album_callback, pattern="^banner_album_.*")],
+        BANNER_CONFIRM: [CallbackQueryHandler(banner_confirm_callback, pattern="^banner_confirm$")],
+    },
+    fallbacks=[CallbackQueryHandler(banner_reset_callback, pattern="^banner_reset$")],
+)
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -1333,6 +1442,7 @@ def main():
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
     app.add_handler(CallbackQueryHandler(menu_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
+    app.add_handler(banner_conv)
     app.run_polling()
 
 if __name__ == "__main__":

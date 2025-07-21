@@ -350,3 +350,34 @@ class PBClient:
             httpx.patch(url, headers=self.headers, json=patch)
             return True
         return False 
+
+    def set_active_banner(self, user_id, group, album):
+        """Установить пользователю активный баннер (группа+альбом)."""
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        data = {"active_banner_group": group, "active_banner_album": album}
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def reset_active_banner(self, user_id):
+        """Сбросить активный баннер (общий пулл)."""
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        data = {"active_banner_group": None, "active_banner_album": None}
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_active_banner(self, pb_user):
+        """Получить активный баннер пользователя. Если не выбран — вернуть случайный существующий баннер (group, album)."""
+        group = pb_user.get("active_banner_group")
+        album = pb_user.get("active_banner_album")
+        if group and album:
+            return group, album
+        # Если не выбран — выбрать случайный баннер
+        all_cards = self.get_all_cards()
+        if not all_cards:
+            return None, None
+        banners = [(c["group"], c["album"]) for c in all_cards if c.get("group") and c.get("album")]
+        if not banners:
+            return None, None
+        return random.choice(banners) 
