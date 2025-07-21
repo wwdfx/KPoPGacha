@@ -126,6 +126,29 @@ async def addpromo_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ Добавление промокода отменено.")
     return ConversationHandler.END
 
+async def drop100(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Только для администратора.")
+        return
+    if not context.args or not context.args[0].isdigit():
+        await update.message.reply_text("Использование: /drop100 <user_id>")
+        return
+    target_tg_id = int(context.args[0])
+    pb_user = pb.get_user_by_telegram_id(target_tg_id)
+    if not pb_user:
+        await update.message.reply_text(f"Пользователь с Telegram ID {target_tg_id} не найден.")
+        return
+    all_cards = pb.get_all_cards()
+    if not all_cards:
+        await update.message.reply_text("В базе нет карточек.")
+        return
+    import random
+    dropped = random.choices(all_cards, k=100)
+    for card in dropped:
+        pb.add_card_to_user(pb_user["id"], card["id"])
+    await update.message.reply_text(f"✅ Выдано 100 случайных карточек пользователю {pb_user.get('name', target_tg_id)} (ID: {target_tg_id})!")
+
 def get_reply_target(update, prefer_edit=False):
     if prefer_edit and hasattr(update, 'callback_query') and update.callback_query and update.callback_query.message:
         return update.callback_query.message
@@ -1126,6 +1149,7 @@ def main():
     app.add_handler(CommandHandler("settings", settings))
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("auctions", auctions))
+    app.add_handler(CommandHandler("drop100", drop100))
     addcard_conv = ConversationHandler(
         entry_points=[CommandHandler("addcard", addcard_start)],
         states={
