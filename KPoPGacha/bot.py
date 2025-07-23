@@ -48,6 +48,8 @@ BANNER_GROUP, BANNER_ALBUM, BANNER_CONFIRM = range(50, 53)
 TRADE_SELECT_USER, TRADE_SELECT_OTHER_CARD, TRADE_CONFIRM = range(60, 63)
 trade_data = {}
 
+TRADE_PAGE_SIZE = 10
+
 async def promo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
     await target.reply_text("Введите промокод:")
@@ -1448,13 +1450,11 @@ async def trade_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TY
     return ConversationHandler.END
 
 async def trade_user_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Обработка выбора пользователя для обмена (reply или текст)
     user = update.effective_user
     trade = context.user_data.get("trade", {})
     if update.message.reply_to_message:
         other_user = update.message.reply_to_message.from_user
     else:
-        # Пытаемся получить по username или id
         text = update.message.text.strip()
         other_user = None
         if text.startswith("@"):  # username
@@ -1470,28 +1470,69 @@ async def trade_user_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not other_user or other_user.id == user.id:
         await update.message.reply_text("Пользователь не найден или выбран некорректно. Попробуйте ещё раз.")
         return TRADE_SELECT_USER
-    # Сохраняем id второго игрока
     trade["other_user_id"] = other_user.id
     context.user_data["trade"] = trade
-    # Получаем инвентарь второго игрока
     pb_other = pb.get_user_by_telegram_id(other_user.id)
     if not pb_other:
         await update.message.reply_text("У выбранного пользователя нет профиля в боте.")
         return TRADE_SELECT_USER
     other_cards = pb.get_user_inventory(pb_other["id"])
     # Фильтруем только те, у которых count > 0
-    card_buttons = []
-    for c in other_cards:
-        card = c.get("expand", {}).get("card_id", {})
-        if not card or c.get("count", 0) < 1:
-            continue
-        btn_text = f"{card.get('name', '???')} — {card.get('rarity', '?')}★"
-        card_buttons.append([InlineKeyboardButton(btn_text, callback_data=f"trade_select_other_{card.get('id')}")])
-    if not card_buttons:
+    card_list = [c for c in other_cards if c.get("expand", {}).get("card_id", {}) and c.get("count", 0) > 0]
+    if not card_list:
         await update.message.reply_text("У выбранного пользователя нет карточек для обмена.")
         return ConversationHandler.END
+    # Сохраняем список карточек и текущую страницу в context.user_data
+    context.user_data["trade_other_cards"] = card_list
+    context.user_data["trade_page"] = 0
+    await show_trade_page(update, context, other_user, 0)
+    return TRADE_SELECT_OTHER_CARD
+
+async def show_trade_page(update, context, other_user, page):
+    card_list = context.user_data.get("trade_other_cards", [])
+    total = len(card_list)
+    start = page * TRADE_PAGE_SIZE
+    end = start + TRADE_PAGE_SIZE
+    page_cards = card_list[start:end]
+    card_buttons = []
+    for c in page_cards:
+        card = c.get("expand", {}).get("card_id", {})
+        btn_text = f"{card.get('name', '???')} — {card.get('rarity', '?')}★"
+        card_buttons.append([InlineKeyboardButton(btn_text, callback_data=f"trade_select_other_{card.get('id')}")])
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton("⏪ Назад", callback_data="trade_page_prev"))
+    if end < total:
+        nav_buttons.append(InlineKeyboardButton("⏩ Далее", callback_data="trade_page_next"))
+    if nav_buttons:
+        card_buttons.append(nav_buttons)
     card_buttons.append([InlineKeyboardButton("❌ Отмена", callback_data="trade_cancel")])
-    await update.message.reply_text(f"Выберите, какую карточку хотите получить у @{other_user.username or other_user.id}:", reply_markup=InlineKeyboardMarkup(card_buttons))
+    text = f"Выберите, какую карточку хотите получить у @{other_user.username or other_user.id} (стр. {page+1}/{(total-1)//TRADE_PAGE_SIZE+1}):"
+    # Если это первый вызов (после выбора пользователя) — reply, иначе edit
+    if hasattr(update, "message") and update.message:
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(card_buttons))
+    else:
+        try:
+            await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(card_buttons))
+        except Exception:
+            await update.callback_query.message.reply_text(text, reply_markup=InlineKeyboardMarkup(card_buttons))
+
+async def trade_page_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    page = context.user_data.get("trade_page", 0)
+    if query.data == "trade_page_next":
+        page += 1
+    elif query.data == "trade_page_prev":
+        page = max(0, page - 1)
+    context.user_data["trade_page"] = page
+    trade = context.user_data.get("trade", {})
+    other_user_id = trade.get("other_user_id")
+    if not other_user_id:
+        await query.edit_message_text("Ошибка: не выбран пользователь для обмена.")
+        return ConversationHandler.END
+    other_user = await context.bot.get_chat(other_user_id)
+    await show_trade_page(update, context, other_user, page)
     return TRADE_SELECT_OTHER_CARD
 
 async def trade_select_other_card_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1613,7 +1654,8 @@ trade_conv = ConversationHandler(
     entry_points=[CallbackQueryHandler(trade_start_callback, pattern="^trade_start_")],
     states={
         TRADE_SELECT_USER: [MessageHandler(filters.REPLY | filters.TEXT & ~filters.COMMAND, trade_user_select)],
-        TRADE_SELECT_OTHER_CARD: [CallbackQueryHandler(trade_select_other_card_callback, pattern="^trade_select_other_.*")],
+        TRADE_SELECT_OTHER_CARD: [CallbackQueryHandler(trade_select_other_card_callback, pattern="^trade_select_other_.*"),
+                                 CallbackQueryHandler(trade_page_callback, pattern="^trade_page_(next|prev)$")],
     },
     fallbacks=[CallbackQueryHandler(trade_cancel_callback, pattern="^trade_cancel")],
 )
