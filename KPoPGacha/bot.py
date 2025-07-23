@@ -11,7 +11,7 @@ from telegram.ext import ConversationHandler, MessageHandler, filters
 from collections import defaultdict
 import httpx
 import asyncio
-from telegram.constants import ParseMode
+from telegram.constants import ParseMode, ChatType
 import uuid
 
 pb = PBClient()
@@ -44,6 +44,9 @@ PROMO_ENTER, = range(20, 21)
 EXCHANGE_SELECT, EXCHANGE_CONFIRM = range(40, 42)
 
 BANNER_GROUP, BANNER_ALBUM, BANNER_CONFIRM = range(50, 53)
+
+TRADE_SELECT_USER, TRADE_SELECT_OTHER_CARD, TRADE_CONFIRM = range(60, 63)
+trade_data = {}
 
 async def promo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
@@ -636,6 +639,9 @@ async def showcard_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Кнопка сдачи дубликатов
     if count > 1:
         keyboard.append([InlineKeyboardButton(f"♻️ Сдать дубликат ({count-1})", callback_data=f"exchange_{card_id}")])
+    # Кнопка обмена
+    if count > 0:
+        keyboard.append([InlineKeyboardButton("🔄 Обменяться", callback_data=f"trade_start_{card_id}")])
     keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="inventory")])
     overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
     if overlayed_path:
@@ -1247,6 +1253,9 @@ async def showcard_refresh_callback(update: Update, context: ContextTypes.DEFAUL
         keyboard.append([InlineKeyboardButton("💸 Выложить на аукцион", callback_data=f"auction_{card_id}")])
     if count > 1:
         keyboard.append([InlineKeyboardButton(f"♻️ Сдать дубликат ({count-1})", callback_data=f"exchange_{card_id}")])
+    # Кнопка обмена
+    if count > 0:
+        keyboard.append([InlineKeyboardButton("🔄 Обменяться", callback_data=f"trade_start_{card_id}")])
     keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="inventory")])
     overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
     # Если сообщение было фото, удаляем его и отправляем новое
@@ -1406,6 +1415,190 @@ async def banner_reset_callback(update: Update, context: ContextTypes.DEFAULT_TY
     await query.edit_message_text("🌐 Баннер сброшен. Теперь пуллы идут по всем картам!", parse_mode="HTML", reply_markup=back_keyboard())
     return ConversationHandler.END
 
+async def trade_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    card_id = query.data.replace("trade_start_", "")
+    # Сохраняем выбранную карточку
+    context.user_data["trade"] = {"my_card_id": card_id}
+    text = (
+        "<b>Обмен карточками</b>\n"
+        "С кем вы хотите обменяться?\n"
+        "<i>Ответьте на сообщение пользователя, с которым хотите обменяться, или введите его username/id в чат.</i>"
+    )
+    keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data="trade_cancel")]]
+    # Ждём либо reply, либо текст
+    await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    return TRADE_SELECT_USER
+
+async def trade_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("Обмен отменён.")
+    context.user_data.pop("trade", None)
+    return ConversationHandler.END
+
+async def trade_user_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Обработка выбора пользователя для обмена (reply или текст)
+    user = update.effective_user
+    trade = context.user_data.get("trade", {})
+    if update.message.reply_to_message:
+        other_user = update.message.reply_to_message.from_user
+    else:
+        # Пытаемся получить по username или id
+        text = update.message.text.strip()
+        other_user = None
+        if text.startswith("@"):  # username
+            try:
+                other_user = await context.bot.get_chat(text)
+            except Exception:
+                pass
+        elif text.isdigit():  # id
+            try:
+                other_user = await context.bot.get_chat(int(text))
+            except Exception:
+                pass
+    if not other_user or other_user.id == user.id:
+        await update.message.reply_text("Пользователь не найден или выбран некорректно. Попробуйте ещё раз.")
+        return TRADE_SELECT_USER
+    # Сохраняем id второго игрока
+    trade["other_user_id"] = other_user.id
+    context.user_data["trade"] = trade
+    # Получаем инвентарь второго игрока
+    pb_other = pb.get_user_by_telegram_id(other_user.id)
+    if not pb_other:
+        await update.message.reply_text("У выбранного пользователя нет профиля в боте.")
+        return TRADE_SELECT_USER
+    other_cards = pb.get_user_inventory(pb_other["id"])
+    # Фильтруем только те, у которых count > 0
+    card_buttons = []
+    for c in other_cards:
+        card = c.get("expand", {}).get("card_id", {})
+        if not card or c.get("count", 0) < 1:
+            continue
+        btn_text = f"{card.get('name', '???')} — {card.get('rarity', '?')}★"
+        card_buttons.append([InlineKeyboardButton(btn_text, callback_data=f"trade_select_other_{card.get('id')}")])
+    if not card_buttons:
+        await update.message.reply_text("У выбранного пользователя нет карточек для обмена.")
+        return ConversationHandler.END
+    card_buttons.append([InlineKeyboardButton("❌ Отмена", callback_data="trade_cancel")])
+    await update.message.reply_text(f"Выберите, какую карточку хотите получить у @{other_user.username or other_user.id}:", reply_markup=InlineKeyboardMarkup(card_buttons))
+    return TRADE_SELECT_OTHER_CARD
+
+async def trade_select_other_card_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    card_id = query.data.replace("trade_select_other_", "")
+    trade = context.user_data.get("trade", {})
+    trade["other_card_id"] = card_id
+    context.user_data["trade"] = trade
+    # Отправляем запрос второму игроку
+    user = update.effective_user
+    other_user_id = trade["other_user_id"]
+    pb_other = pb.get_user_by_telegram_id(other_user_id)
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    # Получаем карточки для отображения
+    my_card = None
+    other_card = None
+    my_cards = pb.get_user_inventory(pb_user["id"])
+    for c in my_cards:
+        card = c.get("expand", {}).get("card_id", {})
+        if card.get("id") == trade["my_card_id"]:
+            my_card = card
+            break
+    other_cards = pb.get_user_inventory(pb_other["id"])
+    for c in other_cards:
+        card = c.get("expand", {}).get("card_id", {})
+        if card.get("id") == trade["other_card_id"]:
+            other_card = card
+            break
+    if not my_card or not other_card:
+        await query.edit_message_text("Ошибка: не удалось найти выбранные карточки.")
+        return ConversationHandler.END
+    # Сохраняем trade_data по id второго игрока (ожидание подтверждения)
+    trade_data[other_user_id] = {
+        "from_user_id": user.id,
+        "my_card_id": trade["my_card_id"],
+        "other_card_id": trade["other_card_id"]
+    }
+    # Отправляем запрос второму игроку
+    text = (
+        f"<b>Вам предлагают обмен!</b>\n"
+        f"Пользователь <b>{user.full_name}</b> предлагает обменяться:\n"
+        f"Отдаёт: <b>{other_card.get('name', '?')}</b> ({other_card.get('rarity', '?')}★)\n"
+        f"Взамен хочет: <b>{my_card.get('name', '?')}</b> ({my_card.get('rarity', '?')}★)\n"
+        f"Принять обмен?"
+    )
+    keyboard = [
+        [InlineKeyboardButton("✅ Принять", callback_data="trade_accept"), InlineKeyboardButton("❌ Отклонить", callback_data="trade_decline")]
+    ]
+    try:
+        await context.bot.send_message(chat_id=other_user_id, text=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text("Запрос на обмен отправлен! Ожидаем подтверждения.")
+    except Exception as e:
+        await query.edit_message_text(f"Не удалось отправить запрос: {e}")
+    return ConversationHandler.END
+
+async def trade_accept_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    trade = trade_data.pop(user_id, None)
+    if not trade:
+        await query.edit_message_text("Запрос на обмен не найден или устарел.")
+        return ConversationHandler.END
+    # Проверяем, что у обоих есть нужные карточки
+    pb_user = pb.get_user_by_telegram_id(trade["from_user_id"])
+    pb_other = pb.get_user_by_telegram_id(user_id)
+    my_cards = pb.get_user_inventory(pb_user["id"])
+    other_cards = pb.get_user_inventory(pb_other["id"])
+    my_card = next((c for c in my_cards if c.get("expand", {}).get("card_id", {}).get("id") == trade["my_card_id"] and c.get("count", 0) > 0), None)
+    other_card = next((c for c in other_cards if c.get("expand", {}).get("card_id", {}).get("id") == trade["other_card_id"] and c.get("count", 0) > 0), None)
+    if not my_card or not other_card:
+        await query.edit_message_text("Одна из карточек уже отсутствует у игрока. Обмен невозможен.")
+        return ConversationHandler.END
+    # Совершаем обмен: уменьшаем count у обоих, добавляем карточку другому
+    pb.add_card_to_user(pb_user["id"], trade["other_card_id"])
+    pb.add_card_to_user(pb_other["id"], trade["my_card_id"])
+    # Уменьшаем count у обоих
+    url1 = f"{pb.base_url}/collections/user_cards/records/{my_card['id']}"
+    url2 = f"{pb.base_url}/collections/user_cards/records/{other_card['id']}"
+    httpx.patch(url1, headers=pb.headers, json={"count": my_card["count"] - 1})
+    httpx.patch(url2, headers=pb.headers, json={"count": other_card["count"] - 1})
+    await query.edit_message_text("Обмен успешно завершён! Карточки обменялись между игроками.")
+    # Оповещаем инициатора
+    try:
+        await context.bot.send_message(chat_id=pb_user["telegram_id"], text="Ваш обмен успешно завершён!", parse_mode="HTML")
+    except Exception:
+        pass
+    return ConversationHandler.END
+
+async def trade_decline_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    trade = trade_data.pop(user_id, None)
+    await query.edit_message_text("Обмен отклонён.")
+    # Оповещаем инициатора
+    if trade:
+        try:
+            pb_user = pb.get_user_by_telegram_id(trade["from_user_id"])
+            await context.bot.send_message(chat_id=pb_user["telegram_id"], text="Ваш обмен был отклонён.", parse_mode="HTML")
+        except Exception:
+            pass
+    return ConversationHandler.END
+
+# ConversationHandler для обмена
+trade_conv = ConversationHandler(
+    entry_points=[CallbackQueryHandler(trade_start_callback, pattern="^trade_start_")],
+    states={
+        TRADE_SELECT_USER: [MessageHandler(filters.REPLY | filters.TEXT & ~filters.COMMAND, trade_user_select)],
+        TRADE_SELECT_OTHER_CARD: [CallbackQueryHandler(trade_select_other_card_callback, pattern="^trade_select_other_.*")],
+    },
+    fallbacks=[CallbackQueryHandler(trade_cancel_callback, pattern="^trade_cancel")],
+)
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     addcard_conv = ConversationHandler(
@@ -1486,6 +1679,9 @@ def main():
     app.add_handler(auction_conv)
     app.add_handler(promo_conv)
     app.add_handler(addpromo_conv)
+    app.add_handler(trade_conv)
+    app.add_handler(CallbackQueryHandler(trade_accept_callback, pattern="^trade_accept$"))
+    app.add_handler(CallbackQueryHandler(trade_decline_callback, pattern="^trade_decline$"))
     app.run_polling()
 
 if __name__ == "__main__":
