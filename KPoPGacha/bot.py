@@ -979,6 +979,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    print(f"[menu_callback] query.data: {query.data}")
     data = query.data
     if data == "menu":
         await menu(update, context)
