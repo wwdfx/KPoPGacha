@@ -1420,7 +1420,6 @@ async def trade_start_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
     user_id = query.from_user.id
     card_id = query.data.replace("trade_start_", "")
-    # Сохраняем выбранную карточку
     context.user_data["trade"] = {"my_card_id": card_id}
     text = (
         "<b>Обмен карточками</b>\n"
@@ -1428,14 +1427,19 @@ async def trade_start_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         "<i>Ответьте на сообщение пользователя, с которым хотите обменяться, или введите его username/id в чат.</i>"
     )
     keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data="trade_cancel")]]
-    # Ждём либо reply, либо текст
-    await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    try:
+        await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception:
+        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     return TRADE_SELECT_USER
 
 async def trade_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await query.edit_message_text("Обмен отменён.")
+    try:
+        await query.edit_message_text("Обмен отменён.")
+    except Exception:
+        await query.message.reply_text("Обмен отменён.")
     context.user_data.pop("trade", None)
     return ConversationHandler.END
 
@@ -1493,12 +1497,10 @@ async def trade_select_other_card_callback(update: Update, context: ContextTypes
     trade = context.user_data.get("trade", {})
     trade["other_card_id"] = card_id
     context.user_data["trade"] = trade
-    # Отправляем запрос второму игроку
     user = update.effective_user
     other_user_id = trade["other_user_id"]
     pb_other = pb.get_user_by_telegram_id(other_user_id)
     pb_user = pb.get_user_by_telegram_id(user.id)
-    # Получаем карточки для отображения
     my_card = None
     other_card = None
     my_cards = pb.get_user_inventory(pb_user["id"])
@@ -1514,15 +1516,16 @@ async def trade_select_other_card_callback(update: Update, context: ContextTypes
             other_card = card
             break
     if not my_card or not other_card:
-        await query.edit_message_text("Ошибка: не удалось найти выбранные карточки.")
+        try:
+            await query.edit_message_text("Ошибка: не удалось найти выбранные карточки.")
+        except Exception:
+            await query.message.reply_text("Ошибка: не удалось найти выбранные карточки.")
         return ConversationHandler.END
-    # Сохраняем trade_data по id второго игрока (ожидание подтверждения)
     trade_data[other_user_id] = {
         "from_user_id": user.id,
         "my_card_id": trade["my_card_id"],
         "other_card_id": trade["other_card_id"]
     }
-    # Отправляем запрос второму игроку
     text = (
         f"<b>Вам предлагают обмен!</b>\n"
         f"Пользователь <b>{user.full_name}</b> предлагает обменяться:\n"
@@ -1537,7 +1540,10 @@ async def trade_select_other_card_callback(update: Update, context: ContextTypes
         await context.bot.send_message(chat_id=other_user_id, text=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
         await query.edit_message_text("Запрос на обмен отправлен! Ожидаем подтверждения.")
     except Exception as e:
-        await query.edit_message_text(f"Не удалось отправить запрос: {e}")
+        try:
+            await query.edit_message_text(f"Не удалось отправить запрос: {e}")
+        except Exception:
+            await query.message.reply_text(f"Не удалось отправить запрос: {e}")
     return ConversationHandler.END
 
 async def trade_accept_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
