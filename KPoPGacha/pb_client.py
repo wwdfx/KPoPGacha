@@ -53,10 +53,19 @@ class PBClient:
 
     def get_all_cards(self):
         url = f"{self.base_url}/collections/cards/records"
-        params = {"perPage": 500}
-        resp = httpx.get(url, headers=self.headers, params=params)
-        resp.raise_for_status()
-        return resp.json().get("items", [])
+        per_page = 500
+        page = 1
+        all_items = []
+        while True:
+            params = {"perPage": per_page, "page": page}
+            resp = httpx.get(url, headers=self.headers, params=params)
+            resp.raise_for_status()
+            items = resp.json().get("items", [])
+            all_items.extend(items)
+            if len(items) < per_page:
+                break
+            page += 1
+        return all_items
 
     def get_random_card_by_rarity(self, rarity):
         url = f"{self.base_url}/collections/cards/records"
