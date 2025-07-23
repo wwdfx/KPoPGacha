@@ -1564,6 +1564,8 @@ async def trade_accept_callback(update: Update, context: ContextTypes.DEFAULT_TY
     other_cards = pb.get_user_inventory(pb_other["id"])
     my_card = next((c for c in my_cards if c.get("expand", {}).get("card_id", {}).get("id") == trade["my_card_id"] and c.get("count", 0) > 0), None)
     other_card = next((c for c in other_cards if c.get("expand", {}).get("card_id", {}).get("id") == trade["other_card_id"] and c.get("count", 0) > 0), None)
+    print(f"[trade_accept_callback] my_card: {my_card}")
+    print(f"[trade_accept_callback] other_card: {other_card}")
     if not my_card or not other_card:
         await query.edit_message_text("Одна из карточек уже отсутствует у игрока. Обмен невозможен.")
         return ConversationHandler.END
@@ -1573,8 +1575,15 @@ async def trade_accept_callback(update: Update, context: ContextTypes.DEFAULT_TY
     # Уменьшаем count у обоих
     url1 = f"{pb.base_url}/collections/user_cards/records/{my_card['id']}"
     url2 = f"{pb.base_url}/collections/user_cards/records/{other_card['id']}"
+    print(f"[trade_accept_callback] PATCH {url1} count: {my_card['count']} -> {my_card['count']-1}")
+    print(f"[trade_accept_callback] PATCH {url2} count: {other_card['count']} -> {other_card['count']-1}")
     httpx.patch(url1, headers=pb.headers, json={"count": my_card["count"] - 1})
     httpx.patch(url2, headers=pb.headers, json={"count": other_card["count"] - 1})
+    # Проверяем результат
+    my_cards_after = pb.get_user_inventory(pb_user["id"])
+    other_cards_after = pb.get_user_inventory(pb_other["id"])
+    print(f"[trade_accept_callback] my_cards_after: {[{'id':c.get('expand',{}).get('card_id',{}).get('id'), 'count':c.get('count')} for c in my_cards_after]}")
+    print(f"[trade_accept_callback] other_cards_after: {[{'id':c.get('expand',{}).get('card_id',{}).get('id'), 'count':c.get('count')} for c in other_cards_after]}")
     await query.edit_message_text("Обмен успешно завершён! Карточки обменялись между игроками.")
     # Оповещаем инициатора
     try:
