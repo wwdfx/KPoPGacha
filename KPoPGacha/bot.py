@@ -609,7 +609,13 @@ async def showcard_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = f"{pb.base_url}/collections/cards/records/{card_id}"
     resp = requests.get(url, headers=pb.headers)
     if resp.status_code != 200:
-        await query.edit_message_text("Карточка не найдена.")
+        try:
+            if query.message and query.message.photo:
+                await query.message.edit_caption("Карточка не найдена.")
+            else:
+                await query.edit_message_text("Карточка не найдена.")
+        except Exception:
+            await query.message.reply_text("Карточка не найдена.")
         return
     card = resp.json()
     user_id = query.from_user.id
@@ -639,7 +645,13 @@ async def showcard_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif card.get("image_url"):
         await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
-        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        try:
+            if query.message and query.message.photo:
+                await query.message.edit_caption(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+            else:
+                await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception:
+            await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def auction_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
