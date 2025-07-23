@@ -458,7 +458,10 @@ async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pb_user:
         if target:
             if prefer_edit:
-                await target.edit_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
+                try:
+                    await target.edit_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
+                except Exception:
+                    await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
             else:
                 await target.reply_text("Профиль не найден. Используйте /start.", parse_mode="HTML", reply_markup=back_keyboard())
         return
@@ -467,7 +470,10 @@ async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not cards:
         if target:
             if prefer_edit:
-                await target.edit_text("Ваша коллекция пуста!", parse_mode="HTML", reply_markup=back_keyboard())
+                try:
+                    await target.edit_text("Ваша коллекция пуста!", parse_mode="HTML", reply_markup=back_keyboard())
+                except Exception:
+                    await target.reply_text("Ваша коллекция пуста!", parse_mode="HTML", reply_markup=back_keyboard())
             else:
                 await target.reply_text("Ваша коллекция пуста!", parse_mode="HTML", reply_markup=back_keyboard())
         return
@@ -486,7 +492,10 @@ async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "<b>🎴 Ваша коллекция:</b>\nВыберите группу:"
     if target:
         if prefer_edit:
-            await target.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            try:
+                await target.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            except Exception:
+                await target.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         else:
             await target.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
@@ -1224,14 +1233,29 @@ async def showcard_refresh_callback(update: Update, context: ContextTypes.DEFAUL
         keyboard.append([InlineKeyboardButton(f"♻️ Сдать дубликат ({count-1})", callback_data=f"exchange_{card_id}")])
     keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="inventory")])
     overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
-    if overlayed_path:
-        with open(overlayed_path, "rb") as img_file:
-            await query.message.reply_photo(img_file, caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
-        os.unlink(overlayed_path)
-    elif card.get("image_url"):
-        await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    # Если сообщение было фото, удаляем его и отправляем новое
+    if query.message and query.message.photo:
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        if overlayed_path:
+            with open(overlayed_path, "rb") as img_file:
+                await query.message.reply_photo(img_file, caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+            os.unlink(overlayed_path)
+        elif card.get("image_url"):
+            await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
-        await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        if overlayed_path:
+            with open(overlayed_path, "rb") as img_file:
+                await query.message.reply_photo(img_file, caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+            os.unlink(overlayed_path)
+        elif card.get("image_url"):
+            await query.message.reply_photo(card.get("image_url"), caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
