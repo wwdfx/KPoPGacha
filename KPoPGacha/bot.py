@@ -1008,7 +1008,10 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "banner":
         await banner_start(update, context)
     else:
-        await query.edit_message_text("Неизвестная команда.")
+        try:
+            await query.edit_message_text("Неизвестная команда.")
+        except Exception:
+            await query.message.reply_text("Неизвестная команда.")
 
 async def addcard_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
