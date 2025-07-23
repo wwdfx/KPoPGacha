@@ -1226,7 +1226,8 @@ async def showcard_refresh_callback(update: Update, context: ContextTypes.DEFAUL
     resp = requests.get(url, headers=pb.headers)
     print(f"[showcard_refresh_callback] resp.status_code:", resp.status_code)
     if resp.status_code != 200:
-        await query.edit_message_text("Карточка не найдена.")
+        # Возвращаем пользователя в инвентарь вместо ошибки
+        await inventory(update, context)
         return
     card = resp.json()
     user_id = query.from_user.id
