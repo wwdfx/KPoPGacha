@@ -513,7 +513,7 @@ async def inventory_group_callback(update: Update, context: ContextTypes.DEFAULT
         card = c.get("expand", {}).get("card_id", {})
         if not card:
             continue
-        if card.get("group", "-") == group:
+        if card.get("group", "-").strip().lower() == group.strip().lower():
             album_set.add(card.get("album", "-"))
     keyboard = []
     for album in sorted(album_set):
@@ -547,7 +547,7 @@ async def inventory_album_callback(update: Update, context: ContextTypes.DEFAULT
     # Получаем все карточки коллекции
     all_cards = pb.get_cards_by_group_album(group, album)
     # Собираем user_card_id -> count
-    user_card_map = {c.get("expand", {}).get("card_id", {}).get("id"): c.get("count", 0) for c in user_cards if c.get("expand", {}).get("card_id", {}).get("group", "-") == group and c.get("expand", {}).get("card_id", {}).get("album", "-") == album}
+    user_card_map = {c.get("expand", {}).get("card_id", {}).get("id"): c.get("count", 0) for c in user_cards if c.get("expand", {}).get("card_id", {}).get("group", "-").strip().lower() == group.strip().lower() and c.get("expand", {}).get("card_id", {}).get("album", "-").strip().lower() == album.strip().lower()}
     # Сортируем по убыванию редкости, затем по имени
     all_cards.sort(key=lambda c: (-c.get("rarity", 1), c.get("name", "")))
     have = 0
@@ -1181,10 +1181,12 @@ async def exchange_confirm_bulk_callback(update: Update, context: ContextTypes.D
     data = query.data.replace("exchange_confirm_bulk_", "")
     card_id, amount = data.rsplit("_", 1)
     amount = int(amount)
+    print(f"[exchange_confirm_bulk_callback] card_id:", card_id)
     user_id = query.from_user.id
     user = pb.get_user_by_telegram_id(user_id)
     user_cards = pb.get_user_inventory(user["id"])
     user_card = next((c for c in user_cards if c.get("card_id") == card_id or (c.get("expand", {}).get("card_id", {}).get("id") == card_id)), None)
+    print(f"[exchange_confirm_bulk_callback] user_card:", user_card)
     count = user_card.get("count", 0) if user_card else 0
     card = user_card.get("expand", {}).get("card_id", {}) if user_card else {}
     rarity = card.get("rarity", 1)
@@ -1216,12 +1218,13 @@ async def exchange_confirm_bulk_callback(update: Update, context: ContextTypes.D
 
 # --- Новый callback для обновления карточки после обмена ---
 async def showcard_refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # То же, что showcard_callback, но всегда делает свежий запрос к базе
     query = update.callback_query
     await query.answer()
     card_id = query.data.replace("showcard_refresh_", "")
+    print(f"[showcard_refresh_callback] card_id:", card_id)
     url = f"{pb.base_url}/collections/cards/records/{card_id}"
     resp = requests.get(url, headers=pb.headers)
+    print(f"[showcard_refresh_callback] resp.status_code:", resp.status_code)
     if resp.status_code != 200:
         await query.edit_message_text("Карточка не найдена.")
         return
