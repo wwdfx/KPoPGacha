@@ -1413,6 +1413,7 @@ def main():
         },
         fallbacks=[CallbackQueryHandler(showcard_callback, pattern="^showcard_")],
     )
+    app.add_handler(exchange_conv)
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("profile", profile))
@@ -1445,7 +1446,6 @@ def main():
     app.add_handler(auction_conv)
     app.add_handler(promo_conv)
     app.add_handler(addpromo_conv)
-    app.add_handler(exchange_conv)
     app.run_polling()
 
 if __name__ == "__main__":
