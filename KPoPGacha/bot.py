@@ -381,25 +381,35 @@ async def pull10_impl(user, pb_user, update):
     pity_void = pb_user.get("pity_void", 0)
     level = pb_user.get("level", 1)
     exp = pb_user.get("exp", 0)
-    stars -= PULL10_COST
-    results = ["<b>Результаты 10 попыток:</b>"]
-    total_exp = 0
-    levelup = False
+    group, album = pb.get_active_banner(pb_user)
+    # Проверка: если баннер выбран, но в нём <10 карт — ошибка
+    if group and album:
+        all_cards = pb.get_cards_by_group_album(group, album)
+        if len(all_cards) < 10:
+            await target.reply_text("В выбранном баннере недостаточно карточек для 10-кратного открытия!", parse_mode="HTML")
+            return
+    results = []
     media = []
     captions = []
-    group, album = pb.get_active_banner(pb_user)
+    total_exp = 0
+    rolls = 0
+    max_rolls = 100
     banner_text = f"<b>Баннер:</b> <i>{group} — {album}</i>\n" if group and album else ""
-    for i in range(10):
+    while len(results) < 10 and rolls < max_rolls:
         rarity = choose_rarity(pity_legendary, pity_void)
         if group and album:
             all_cards = pb.get_cards_by_group_album(group, album)
             cards_of_rarity = [c for c in all_cards if c.get("rarity") == rarity]
-            card = random.choice(cards_of_rarity) if cards_of_rarity else None
+            if not cards_of_rarity:
+                rolls += 1
+                continue  # не засчитываем roll, не списываем звёзды
+            card = random.choice(cards_of_rarity)
         else:
             card = pb.get_random_card_by_rarity(rarity)
-        if not card:
-            results.append(f"{i+1}. Нет карточек с редкостью {rarity}★ в выбранном баннере!")
-            continue
+            if not card:
+                rolls += 1
+                continue
+        # Pity-счётчики
         if rarity == 6:
             pity_void = 0
             pity_legendary += 1
@@ -430,12 +440,29 @@ async def pull10_impl(user, pb_user, update):
             media.append(InputMediaPhoto(card["image_url"], caption=caption, parse_mode="HTML"))
             captions.append(None)
         else:
-            results.append(f"{i+1}. {card['name']} — нет изображения")
+            results.append(f"{len(results)+1}. {card['name']} — нет изображения")
+        results.append(card)
+        rolls += 1
+    if len(results) < 10:
+        await target.reply_text("В выбранном баннере недостаточно подходящих карточек для 10-кратного открытия!", parse_mode="HTML")
+        return
+    pb.update_user_stars_and_pity(user_id, stars - PULL10_COST, pity_legendary, pity_void)
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
-    pb.update_user_stars_and_pity(user_id, stars, pity_legendary, pity_void)
+    if media:
+        try:
+            await target.reply_media_group(media)
+        except Exception:
+            for m in media:
+                await target.reply_photo(m.media, caption=m.caption, parse_mode="HTML")
+        for path in captions:
+            if path:
+                try:
+                    os.unlink(path)
+                except Exception:
+                    pass
     if levelup:
         rank = pb.get_rank(updated_user.get('level', 1))
-        results.append(f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>")
+        await target.reply_text(f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>", parse_mode="HTML")
     # Отправляем альбом, если есть хотя бы 2 картинки
     if media:
         try:
