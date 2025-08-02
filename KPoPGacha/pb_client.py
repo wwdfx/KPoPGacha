@@ -359,7 +359,7 @@ class PBClient:
             patch = {"daily_bonus_token": "", "daily_bonus_date": today}
             httpx.patch(url, headers=self.headers, json=patch)
             return True
-        return False 
+        return False
 
     def set_active_banner(self, user_id, group, album):
         """Установить пользователю активный баннер (группа+альбом)."""
@@ -390,4 +390,536 @@ class PBClient:
         banners = [(c["group"], c["album"]) for c in all_cards if c.get("group") and c.get("album")]
         if not banners:
             return None, None
-        return random.choice(banners) 
+        return random.choice(banners)
+
+    def ban_user(self, telegram_id, reason):
+        """Заблокировать пользователя"""
+        url = f"{self.base_url}/collections/tg_users/records"
+        params = {"filter": f'telegram_id="{telegram_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if items:
+            record = items[0]
+            update_url = f"{self.base_url}/collections/tg_users/records/{record['id']}"
+            data = {"banned": True, "ban_reason": reason}
+            resp2 = httpx.patch(update_url, headers=self.headers, json=data)
+            resp2.raise_for_status()
+            return resp2.json()
+        return None
+
+    def unban_user(self, telegram_id):
+        """Разблокировать пользователя"""
+        url = f"{self.base_url}/collections/tg_users/records"
+        params = {"filter": f'telegram_id="{telegram_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if items:
+            record = items[0]
+            update_url = f"{self.base_url}/collections/tg_users/records/{record['id']}"
+            data = {"banned": False, "ban_reason": None}
+            resp2 = httpx.patch(update_url, headers=self.headers, json=data)
+            resp2.raise_for_status()
+            return resp2.json()
+        return None
+
+    def reset_user_progress(self, telegram_id):
+        """Сбросить прогресс пользователя"""
+        url = f"{self.base_url}/collections/tg_users/records"
+        params = {"filter": f'telegram_id="{telegram_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if items:
+            record = items[0]
+            update_url = f"{self.base_url}/collections/tg_users/records/{record['id']}"
+            data = {
+                "level": 1,
+                "exp": 0,
+                "stars": 0,
+                "pity_legendary": 0,
+                "pity_void": 0
+            }
+            resp2 = httpx.patch(update_url, headers=self.headers, json=data)
+            resp2.raise_for_status()
+
+            # Удаляем все карточки пользователя
+            user_id = record["id"]
+            self.delete_user_cards(user_id)
+
+            return resp2.json()
+        return None
+
+    def set_user_level(self, telegram_id, level):
+        """Установить уровень пользователя"""
+        url = f"{self.base_url}/collections/tg_users/records"
+        params = {"filter": f'telegram_id="{telegram_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if items:
+            record = items[0]
+            update_url = f"{self.base_url}/collections/tg_users/records/{record['id']}"
+            data = {"level": level}
+            resp2 = httpx.patch(update_url, headers=self.headers, json=data)
+            resp2.raise_for_status()
+            return resp2.json()
+        return None
+
+    def set_user_exp(self, telegram_id, exp):
+        """Установить опыт пользователя"""
+        url = f"{self.base_url}/collections/tg_users/records"
+        params = {"filter": f'telegram_id="{telegram_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if items:
+            record = items[0]
+            update_url = f"{self.base_url}/collections/tg_users/records/{record['id']}"
+            data = {"exp": exp}
+            resp2 = httpx.patch(update_url, headers=self.headers, json=data)
+            resp2.raise_for_status()
+            return resp2.json()
+        return None
+
+    def delete_user_cards(self, user_id):
+        """Удалить все карточки пользователя"""
+        url = f"{self.base_url}/collections/user_cards/records"
+        params = {"filter": f'user_id="{user_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        for item in items:
+            delete_url = f"{self.base_url}/collections/user_cards/records/{item['id']}"
+            httpx.delete(delete_url, headers=self.headers)
+
+    def get_card_by_id(self, card_id):
+        """Получить карточку по ID"""
+        url = f"{self.base_url}/collections/cards/records"
+        params = {"filter": f'id="{card_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        return items[0] if items else None
+
+    def add_card_to_user(self, user_id, card_id):
+        """Добавить карточку пользователю"""
+        url = f"{self.base_url}/collections/user_cards/records"
+        data = {
+            "user_id": user_id,
+            "card_id": card_id,
+            "quantity": 1
+        }
+        resp = httpx.post(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def remove_card_from_user(self, user_id, card_id):
+        """Удалить карточку у пользователя"""
+        url = f"{self.base_url}/collections/user_cards/records"
+        params = {"filter": f'user_id="{user_id}" && card_id="{card_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if items:
+            delete_url = f"{self.base_url}/collections/user_cards/records/{items[0]['id']}"
+            httpx.delete(delete_url, headers=self.headers)
+            return True
+        return False
+
+    def duplicate_card_for_user(self, user_id, card_id, count):
+        """Добавить несколько копий карточки пользователю"""
+        url = f"{self.base_url}/collections/user_cards/records"
+        params = {"filter": f'user_id="{user_id}" && card_id="{card_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+
+        if items:
+            # Обновляем количество существующей записи
+            record = items[0]
+            current_quantity = record.get("quantity", 1)
+            new_quantity = current_quantity + count
+            update_url = f"{self.base_url}/collections/user_cards/records/{record['id']}"
+            data = {"quantity": new_quantity}
+            httpx.patch(update_url, headers=self.headers, json=data)
+        else:
+            # Создаем новую запись
+            data = {
+                "user_id": user_id,
+                "card_id": card_id,
+                "quantity": count
+            }
+            httpx.post(url, headers=self.headers, json=data)
+
+    def set_user_pity(self, telegram_id, legendary, void):
+        """Установить pity пользователя"""
+        url = f"{self.base_url}/collections/tg_users/records"
+        params = {"filter": f'telegram_id="{telegram_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if items:
+            record = items[0]
+            update_url = f"{self.base_url}/collections/tg_users/records/{record['id']}"
+            data = {
+                "pity_legendary": legendary,
+                "pity_void": void
+            }
+            resp2 = httpx.patch(update_url, headers=self.headers, json=data)
+            resp2.raise_for_status()
+            return resp2.json()
+        return None
+
+    def reset_daily_bonus(self, user_id):
+        """Сбросить ежедневный бонус пользователя"""
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        data = {"last_daily": None}
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def set_user_banner(self, telegram_id, group, album):
+        """Установить баннер пользователя"""
+        url = f"{self.base_url}/collections/tg_users/records"
+        params = {"filter": f'telegram_id="{telegram_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        if items:
+            record = items[0]
+            update_url = f"{self.base_url}/collections/tg_users/records/{record['id']}"
+            data = {
+                "active_banner_group": group,
+                "active_banner_album": album
+            }
+            resp2 = httpx.patch(update_url, headers=self.headers, json=data)
+            resp2.raise_for_status()
+            return resp2.json()
+        return None
+
+    def reset_user_banner(self, user_id):
+        """Сбросить баннер пользователя"""
+        url = f"{self.base_url}/collections/tg_users/records/{user_id}"
+        data = {
+            "active_banner_group": None,
+            "active_banner_album": None
+        }
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def give_achievement(self, user_id, group, album, level):
+        """Выдать достижение пользователю"""
+        url = f"{self.base_url}/collections/collection_achievements/records"
+        data = {
+            "user_id": user_id,
+            "group": group,
+            "album": album,
+            "level": level,
+            "achieved_at": datetime.now().isoformat()
+        }
+        resp = httpx.post(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def reset_user_achievements(self, user_id):
+        """Сбросить достижения пользователя"""
+        url = f"{self.base_url}/collections/collection_achievements/records"
+        params = {"filter": f'user_id="{user_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        for item in items:
+            delete_url = f"{self.base_url}/collections/collection_achievements/records/{item['id']}"
+            httpx.delete(delete_url, headers=self.headers)
+        return True
+
+    def get_card_ownership_stats(self, card_id):
+        """Получить статистику владения карточкой"""
+        url = f"{self.base_url}/collections/user_cards/records"
+        params = {"filter": f'card_id="{card_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+
+        total_copies = sum(item.get("quantity", 1) for item in items)
+        total_owners = len(items)
+
+        return {
+            "total_owners": total_owners,
+            "total_copies": total_copies
+        }
+
+    def get_activity_stats(self, days):
+        """Получить статистику активности"""
+        from datetime import datetime, timedelta
+
+        # Получаем всех пользователей
+        users = self.get_all_users()
+
+        # Получаем историю попыток
+        url = f"{self.base_url}/collections/pull_history/records"
+        resp = httpx.get(url, headers=self.headers)
+        resp.raise_for_status()
+        pull_history = resp.json().get("items", [])
+
+        # Вычисляем даты
+        now = datetime.now()
+        days_ago = now - timedelta(days=days)
+        today = now.date()
+
+        # Фильтруем попытки по дате
+        recent_pulls = []
+        today_pulls = 0
+
+        for pull in pull_history:
+            try:
+                pull_date = datetime.fromisoformat(pull.get("created", "").replace("Z", "+00:00"))
+                if pull_date >= days_ago:
+                    recent_pulls.append(pull)
+                    if pull_date.date() == today:
+                        today_pulls += 1
+            except:
+                continue
+
+        # Подсчитываем статистику
+        new_users = 0
+        active_users = set()
+
+        for user in users:
+            try:
+                created_date = datetime.fromisoformat(user.get("created", "").replace("Z", "+00:00"))
+                if created_date >= days_ago:
+                    new_users += 1
+            except:
+                continue
+
+            # Проверяем активность пользователя
+            user_pulls = [p for p in recent_pulls if p.get("user_id") == user["id"]]
+            if user_pulls:
+                active_users.add(user["id"])
+
+        total_pulls = len(recent_pulls)
+        avg_pulls_per_user = total_pulls / len(active_users) if active_users else 0
+
+        return {
+            "new_users": new_users,
+            "active_users": len(active_users),
+            "total_pulls": total_pulls,
+            "avg_pulls_per_user": avg_pulls_per_user,
+            "pulls_today": today_pulls
+        }
+
+    def create_backup(self):
+        """Создать резервную копию данных"""
+        from datetime import datetime
+
+        # Получаем статистику по всем коллекциям
+        users = self.get_all_users()
+        cards = self.get_all_cards()
+
+        # Получаем другие данные
+        url_pulls = f"{self.base_url}/collections/pull_history/records"
+        resp_pulls = httpx.get(url_pulls, headers=self.headers)
+        resp_pulls.raise_for_status()
+        pulls = resp_pulls.json().get("items", [])
+
+        url_auctions = f"{self.base_url}/collections/auctions/records"
+        resp_auctions = httpx.get(url_auctions, headers=self.headers)
+        resp_auctions.raise_for_status()
+        auctions = resp_auctions.json().get("items", [])
+
+        url_achievements = f"{self.base_url}/collections/collection_achievements/records"
+        resp_achievements = httpx.get(url_achievements, headers=self.headers)
+        resp_achievements.raise_for_status()
+        achievements = resp_achievements.json().get("items", [])
+
+        return {
+            "users_count": len(users),
+            "cards_count": len(cards),
+            "pulls_count": len(pulls),
+            "auctions_count": len(auctions),
+            "achievements_count": len(achievements),
+            "created_at": datetime.now().isoformat()
+        }
+
+    def set_maintenance_mode(self, enabled):
+        """Установить режим обслуживания"""
+        # В реальной реализации здесь можно сохранить флаг в базе данных
+        # или использовать глобальную переменную
+        # Пока что просто возвращаем успех
+        return True
+
+    def start_event(self, event_name, duration_days):
+        """Запустить праздничное событие"""
+        from datetime import datetime, timedelta
+
+        end_date = datetime.now() + timedelta(days=duration_days)
+
+        # В реальной реализации здесь можно создать запись в базе данных
+        # Пока что возвращаем заглушку
+        return {
+            "id": f"event_{datetime.now().timestamp()}",
+            "name": event_name,
+            "end_date": end_date.isoformat(),
+            "duration_days": duration_days
+        }
+
+    def end_active_event(self):
+        """Завершить активное событие"""
+        from datetime import datetime
+
+        # В реальной реализации здесь можно найти и завершить активное событие
+        # Пока что возвращаем заглушку
+        return {
+            "name": "Тестовое событие",
+            "participants_count": 0,
+            "ended_at": datetime.now().isoformat()
+        }
+
+    def give_event_rewards(self, event_name):
+        """Выдать награды участникам события"""
+        # В реальной реализации здесь можно выдать награды участникам
+        # Пока что возвращаем заглушку
+        return {
+            "participants_count": 0,
+            "rewards_given": 0,
+            "stars_given": 0
+        }
+
+    def set_event_banner(self, group, album):
+        """Установить баннер события"""
+        # Получаем количество карточек в баннере
+        cards = self.get_cards_by_group_album(group, album)
+
+        return {
+            "cards_count": len(cards)
+        }
+
+    def add_warning(self, telegram_id, reason):
+        """Добавить предупреждение пользователю"""
+        from datetime import datetime
+
+        # В реальной реализации здесь можно создать запись в базе данных
+        # Пока что просто возвращаем успех
+        return True
+
+    def mute_user(self, telegram_id, hours):
+        """Замутить пользователя"""
+        from datetime import datetime, timedelta
+
+        # В реальной реализации здесь можно обновить запись пользователя
+        # Пока что просто возвращаем успех
+        return True
+
+    def unmute_user(self, telegram_id):
+        """Размутить пользователя"""
+        # В реальной реализации здесь можно обновить запись пользователя
+        # Пока что просто возвращаем успех
+        return True
+
+    def get_user_moderation_history(self, telegram_id):
+        """Получить историю модерации пользователя"""
+        # В реальной реализации здесь можно получить записи из базы данных
+        # Пока что возвращаем пустой список
+        return []
+
+    def get_daily_report(self):
+        """Получить ежедневный отчет"""
+        from datetime import datetime, timedelta
+        
+        # Получаем данные за сегодня
+        today = datetime.now().date()
+        today_start = datetime.combine(today, datetime.min.time())
+        today_end = datetime.combine(today, datetime.max.time())
+        
+        # В реальной реализации здесь можно получить данные из базы
+        # Пока что возвращаем заглушку
+        return {
+            "new_users": 0,
+            "active_users": 0,
+            "total_pulls": 0,
+            "single_pulls": 0,
+            "ten_pulls": 0,
+            "stars_given": 0,
+            "stars_earned": 0,
+            "auctions_created": 0,
+            "auctions_completed": 0,
+            "promos_used": 0
+        }
+
+    def get_weekly_report(self):
+        """Получить еженедельный отчет"""
+        from datetime import datetime, timedelta
+        
+        # Получаем данные за последнюю неделю
+        week_ago = datetime.now() - timedelta(days=7)
+        
+        # В реальной реализации здесь можно получить данные из базы
+        # Пока что возвращаем заглушку
+        return {
+            "new_users": 0,
+            "active_users": 0,
+            "total_pulls": 0,
+            "avg_pulls_per_user": 0.0,
+            "stars_given": 0,
+            "stars_earned": 0,
+            "auctions_created": 0,
+            "auctions_completed": 0,
+            "promos_used": 0,
+            "achievements_given": 0
+        }
+
+    def get_revenue_stats(self):
+        """Получить статистику доходов"""
+        # Получаем всех пользователей
+        users = self.get_all_users()
+        
+        if not users:
+            return {
+                "total_stars": 0,
+                "avg_stars_per_user": 0.0,
+                "max_stars": 0,
+                "users_with_zero_stars": 0,
+                "users_with_100_plus_stars": 0,
+                "users_with_1000_plus_stars": 0
+            }
+        
+        total_stars = sum(user.get("stars", 0) for user in users)
+        max_stars = max(user.get("stars", 0) for user in users)
+        users_with_zero_stars = sum(1 for user in users if user.get("stars", 0) == 0)
+        users_with_100_plus_stars = sum(1 for user in users if user.get("stars", 0) >= 100)
+        users_with_1000_plus_stars = sum(1 for user in users if user.get("stars", 0) >= 1000)
+        avg_stars_per_user = total_stars / len(users)
+        
+        return {
+            "total_stars": total_stars,
+            "avg_stars_per_user": avg_stars_per_user,
+            "max_stars": max_stars,
+            "users_with_zero_stars": users_with_zero_stars,
+            "users_with_100_plus_stars": users_with_100_plus_stars,
+            "users_with_1000_plus_stars": users_with_1000_plus_stars
+        }
+
+    def get_popular_cards(self, limit=10):
+        """Получить популярные карточки"""
+        # Получаем все карточки
+        cards = self.get_all_cards()
+        
+        # Получаем статистику владения для каждой карточки
+        popular_cards = []
+        for card in cards:
+            ownership_stats = self.get_card_ownership_stats(card["id"])
+            card_with_stats = {
+                **card,
+                "owners_count": ownership_stats.get("total_owners", 0),
+                "total_copies": ownership_stats.get("total_copies", 0)
+            }
+            popular_cards.append(card_with_stats)
+        
+        # Сортируем по количеству владельцев
+        popular_cards.sort(key=lambda x: x.get("owners_count", 0), reverse=True)
+        
+        return popular_cards[:limit] 

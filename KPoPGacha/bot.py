@@ -269,7 +269,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Добавляем админ-команды только для админов
     if user_id in ADMIN_IDS:
-                          help_text += "\n\n<b>Админ-команды:</b>\n<b>/admin</b> — админ-панель\n<b>/admin_stars [количество] [причина]</b> — добавить всем звезд\n<b>/admin_stars_user [ID] [количество]</b> — добавить звезд пользователю\n<b>/admin_give_cards [ID] [количество]</b> — выдать карточки пользователю"
+        help_text += "\n\n<b>Админ-команды:</b>\n<b>/admin</b> — админ-панель\n<b>/admin_stars [количество] [причина]</b> — добавить всем звезд\n<b>/admin_stars_user [ID] [количество]</b> — добавить звезд пользователю\n<b>/admin_give_cards [ID] [количество]</b> — выдать карточки пользователю\n<b>/admin_ban [ID] [причина]</b> — заблокировать пользователя\n<b>/admin_unban [ID]</b> — разблокировать пользователя\n<b>/admin_reset_user [ID]</b> — сбросить прогресс пользователя\n<b>/admin_set_level [ID] [уровень]</b> — установить уровень\n<b>/admin_set_exp [ID] [опыт]</b> — установить опыт\n<b>/admin_add_card [ID] [card_id]</b> — добавить карточку пользователю\n<b>/admin_remove_card [ID] [card_id]</b> — удалить карточку у пользователя\n<b>/admin_duplicate_card [ID] [card_id] [количество]</b> — дублировать карточку\n<b>/admin_set_pity [ID] [legendary] [void]</b> — установить pity\n<b>/admin_multiply_stars [множитель]</b> — умножить звезды у всех\n<b>/admin_daily_reset</b> — сбросить ежедневные бонусы\n<b>/admin_give_exp [ID] [количество]</b> — выдать опыт пользователю\n<b>/admin_set_banner [ID] [группа] [альбом]</b> — установить баннер\n<b>/admin_reset_banners</b> — сбросить баннеры у всех\n<b>/admin_give_achievement [ID] [группа] [альбом] [уровень]</b> — выдать достижение\n<b>/admin_reset_achievements [ID]</b> — сбросить достижения\n<b>/admin_user_info [ID]</b> — информация о пользователе\n<b>/admin_top_users [количество]</b> — топ пользователей\n<b>/admin_card_stats [card_id]</b> — статистика карточки\n<b>/admin_activity_log [дни]</b> — лог активности\n<b>/admin_backup</b> — создать резервную копию\n<b>/admin_maintenance [on/off]</b> — режим обслуживания\n<b>/admin_announce [сообщение]</b> — отправить объявление\n<b>/admin_test_notification</b> — тест уведомлений\n<b>/admin_event_start [название] [длительность]</b> — запустить событие\n<b>/admin_event_end</b> — завершить событие\n<b>/admin_give_event_rewards [событие]</b> — выдать награды\n<b>/admin_set_event_banner [группа] [альбом]</b> — баннер события\n<b>/admin_warn [ID] [причина]</b> — предупреждение\n<b>/admin_mute [ID] [часы]</b> — замутить пользователя\n<b>/admin_unmute [ID]</b> — размутить пользователя\n<b>/admin_user_history [ID]</b> — история пользователя\n<b>/admin_daily_report</b> — ежедневный отчет\n<b>/admin_weekly_report</b> — еженедельный отчет\n<b>/admin_revenue_stats</b> — статистика доходов\n<b>/admin_popular_cards [количество]</b> — популярные карточки"
     
     if target:
         await target.reply_text(help_text, parse_mode="HTML")
@@ -1961,13 +1961,60 @@ def main():
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
     
     # Добавляем обработчики админ-callback'ов ПЕРЕД общим menu_callback
-    from admin_panel import handle_admin_callback, admin_stars_command, admin_stars_user_command, admin_give_cards_command
+    from admin_panel import (
+        handle_admin_callback, admin_stars_command, admin_stars_user_command, admin_give_cards_command,
+        admin_ban_command, admin_unban_command, admin_reset_user_command, admin_set_level_command, admin_set_exp_command,
+        admin_add_card_command, admin_remove_card_command, admin_duplicate_card_command, admin_set_pity_command,
+        admin_multiply_stars_command, admin_daily_reset_command, admin_give_exp_command,
+        admin_set_banner_command, admin_reset_banners_command, admin_give_achievement_command, admin_reset_achievements_command,
+        admin_user_info_command, admin_top_users_command, admin_card_stats_command, admin_activity_log_command,
+        admin_backup_command, admin_maintenance_command, admin_announce_command, admin_test_notification_command,
+        admin_event_start_command, admin_event_end_command, admin_give_event_rewards_command, admin_set_event_banner_command,
+        admin_warn_command, admin_mute_command, admin_unmute_command, admin_user_history_command,
+        admin_daily_report_command, admin_weekly_report_command, admin_revenue_stats_command, admin_popular_cards_command
+    )
     app.add_handler(CallbackQueryHandler(handle_admin_callback, pattern="^admin_"))
     
     # Добавляем админ-команды
     app.add_handler(CommandHandler("admin_stars", admin_stars_command))
     app.add_handler(CommandHandler("admin_stars_user", admin_stars_user_command))
     app.add_handler(CommandHandler("admin_give_cards", admin_give_cards_command))
+    app.add_handler(CommandHandler("admin_ban", admin_ban_command))
+    app.add_handler(CommandHandler("admin_unban", admin_unban_command))
+    app.add_handler(CommandHandler("admin_reset_user", admin_reset_user_command))
+    app.add_handler(CommandHandler("admin_set_level", admin_set_level_command))
+    app.add_handler(CommandHandler("admin_set_exp", admin_set_exp_command))
+    app.add_handler(CommandHandler("admin_add_card", admin_add_card_command))
+    app.add_handler(CommandHandler("admin_remove_card", admin_remove_card_command))
+    app.add_handler(CommandHandler("admin_duplicate_card", admin_duplicate_card_command))
+    app.add_handler(CommandHandler("admin_set_pity", admin_set_pity_command))
+    app.add_handler(CommandHandler("admin_multiply_stars", admin_multiply_stars_command))
+    app.add_handler(CommandHandler("admin_daily_reset", admin_daily_reset_command))
+    app.add_handler(CommandHandler("admin_give_exp", admin_give_exp_command))
+    app.add_handler(CommandHandler("admin_set_banner", admin_set_banner_command))
+    app.add_handler(CommandHandler("admin_reset_banners", admin_reset_banners_command))
+    app.add_handler(CommandHandler("admin_give_achievement", admin_give_achievement_command))
+    app.add_handler(CommandHandler("admin_reset_achievements", admin_reset_achievements_command))
+    app.add_handler(CommandHandler("admin_user_info", admin_user_info_command))
+    app.add_handler(CommandHandler("admin_top_users", admin_top_users_command))
+    app.add_handler(CommandHandler("admin_card_stats", admin_card_stats_command))
+    app.add_handler(CommandHandler("admin_activity_log", admin_activity_log_command))
+    app.add_handler(CommandHandler("admin_backup", admin_backup_command))
+    app.add_handler(CommandHandler("admin_maintenance", admin_maintenance_command))
+    app.add_handler(CommandHandler("admin_announce", admin_announce_command))
+    app.add_handler(CommandHandler("admin_test_notification", admin_test_notification_command))
+    app.add_handler(CommandHandler("admin_event_start", admin_event_start_command))
+    app.add_handler(CommandHandler("admin_event_end", admin_event_end_command))
+    app.add_handler(CommandHandler("admin_give_event_rewards", admin_give_event_rewards_command))
+    app.add_handler(CommandHandler("admin_set_event_banner", admin_set_event_banner_command))
+    app.add_handler(CommandHandler("admin_warn", admin_warn_command))
+    app.add_handler(CommandHandler("admin_mute", admin_mute_command))
+    app.add_handler(CommandHandler("admin_unmute", admin_unmute_command))
+    app.add_handler(CommandHandler("admin_user_history", admin_user_history_command))
+    app.add_handler(CommandHandler("admin_daily_report", admin_daily_report_command))
+    app.add_handler(CommandHandler("admin_weekly_report", admin_weekly_report_command))
+    app.add_handler(CommandHandler("admin_revenue_stats", admin_revenue_stats_command))
+    app.add_handler(CommandHandler("admin_popular_cards", admin_popular_cards_command))
     
     # Добавляем админ-панель
     admin_conv = get_admin_conversation_handler()
