@@ -449,20 +449,37 @@ async def pull10_impl(user, pb_user, update):
     pb.update_user_stars_and_pity(user_id, stars - PULL10_COST, pity_legendary, pity_void)
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
     if media:
-        try:
-            await target.reply_media_group(media)
-        except Exception as e:
-            print(f"DEBUG: Ошибка отправки медиа-группы: {e}")
-            # Отправляем по одной карте с задержкой
-            for i, m in enumerate(media):
-                try:
-                    await target.reply_photo(m.media, caption=m.caption, parse_mode="HTML")
-                    if i < len(media) - 1:  # Не делаем задержку после последней карты
-                        await asyncio.sleep(0.5)  # Задержка между отправками
-                except Exception as e:
-                    print(f"DEBUG: Ошибка отправки карты {i+1}: {e}")
-                    # Если не удалось отправить фото, отправляем текстом
-                    await target.reply_text(m.caption, parse_mode="HTML")
+        # Если карт много, отправляем текстовое резюме
+        if len(media) > 5:
+            summary = f"{banner_text}<b>🎉 Получено {len(media)} карточек!</b>\n\n"
+            rarity_summary = {}
+            for m in media:
+                # Извлекаем редкость из caption
+                caption = m.caption
+                if "Редкость: " in caption:
+                    rarity_line = caption.split("Редкость: ")[1].split(" ")[0]
+                    rarity = int(rarity_line.replace("★", ""))
+                    rarity_summary[rarity] = rarity_summary.get(rarity, 0) + 1
+            
+            for rarity in sorted(rarity_summary.keys()):
+                summary += f"<b>{rarity}★</b>: {rarity_summary[rarity]} карт\n"
+            
+            await target.reply_text(summary, parse_mode="HTML")
+        else:
+            try:
+                await target.reply_media_group(media)
+            except Exception as e:
+                print(f"DEBUG: Ошибка отправки медиа-группы: {e}")
+                # Отправляем по одной карте с задержкой
+                for i, m in enumerate(media):
+                    try:
+                        await target.reply_photo(m.media, caption=m.caption, parse_mode="HTML")
+                        if i < len(media) - 1:  # Не делаем задержку после последней карты
+                            await asyncio.sleep(1.0)  # Увеличиваем задержку между отправками
+                    except Exception as e:
+                        print(f"DEBUG: Ошибка отправки карты {i+1}: {e}")
+                        # Если не удалось отправить фото, отправляем текстом
+                        await target.reply_text(m.caption, parse_mode="HTML")
         for path in captions:
             if path:
                 try:
