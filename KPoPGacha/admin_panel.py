@@ -31,6 +31,7 @@ async def admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎉 Праздничные функции", callback_data="admin_events_menu")],
         [InlineKeyboardButton("🛡️ Модерация", callback_data="admin_moderation_menu")],
         [InlineKeyboardButton("📈 Статистика и отчеты", callback_data="admin_reports_menu")],
+        [InlineKeyboardButton("🎯 Интерактивы", callback_data="admin_interactives_menu")],
         [InlineKeyboardButton("❌ Отмена", callback_data="admin_cancel")]
     ]
     
@@ -186,6 +187,22 @@ async def admin_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return ADMIN_MENU
     
+    elif query.data == "admin_interactives_menu":
+        keyboard = [
+            [InlineKeyboardButton("➕ Добавить интерактив", callback_data="admin_add_interactive_info")],
+            [InlineKeyboardButton("📋 Список интерактивов", callback_data="admin_list_interactives_info")],
+            [InlineKeyboardButton("❌ Деактивировать интерактив", callback_data="admin_deactivate_interactive_info")],
+            [InlineKeyboardButton("🗑️ Удалить интерактив", callback_data="admin_delete_interactive_info")],
+            [InlineKeyboardButton("📊 Статистика интерактивов", callback_data="admin_interactive_stats_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            "🎯 <b>Управление интерактивами</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return ADMIN_MENU
+    
     # Информационные callback'ы для команд
     elif query.data.endswith("_info"):
         command_name = query.data.replace("_info", "")
@@ -237,6 +254,7 @@ async def admin_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             [InlineKeyboardButton("🎉 Праздничные функции", callback_data="admin_events_menu")],
             [InlineKeyboardButton("🛡️ Модерация", callback_data="admin_moderation_menu")],
             [InlineKeyboardButton("📈 Статистика и отчеты", callback_data="admin_reports_menu")],
+            [InlineKeyboardButton("🎯 Интерактивы", callback_data="admin_interactives_menu")],
             [InlineKeyboardButton("❌ Отмена", callback_data="admin_cancel")]
         ]
         
@@ -1749,7 +1767,202 @@ def get_command_info(command_name):
         
         "admin_revenue_stats": "💰 <b>Статистика доходов</b>\n\nИспользуйте: <code>/admin_revenue_stats</code>\n\nПокажет статистику доходов.",
         
-        "admin_popular_cards": "🔥 <b>Популярные карточки</b>\n\nИспользуйте: <code>/admin_popular_cards [количество]</code>\n\nПример: <code>/admin_popular_cards 10</code>\n\nПокажет самые популярные карточки."
+        "admin_popular_cards": "🔥 <b>Популярные карточки</b>\n\nИспользуйте: <code>/admin_popular_cards [количество]</code>\n\nПример: <code>/admin_popular_cards 10</code>\n\nПокажет самые популярные карточки.",
+        
+        "admin_add_interactive": "➕ <b>Добавить интерактивный пост</b>\n\nИспользуйте: <code>/admin_add_interactive [ссылка] [название] [описание] [награда]</code>\n\nПример: <code>/admin_add_interactive https://t.me/post/123 'Тест интерактива' 'Описание поста' 15</code>\n\nСоздаст новый интерактивный пост с указанной наградой.",
+        
+        "admin_list_interactives": "📋 <b>Список интерактивов</b>\n\nИспользуйте: <code>/admin_list_interactives</code>\n\nПокажет все активные интерактивные посты.",
+        
+        "admin_deactivate_interactive": "❌ <b>Деактивировать интерактив</b>\n\nИспользуйте: <code>/admin_deactivate_interactive [ID]</code>\n\nПример: <code>/admin_deactivate_interactive post_123</code>\n\nДеактивирует интерактивный пост (скроет из списка доступных).",
+        
+        "admin_delete_interactive": "🗑️ <b>Удалить интерактив</b>\n\nИспользуйте: <code>/admin_delete_interactive [ID]</code>\n\nПример: <code>/admin_delete_interactive post_123</code>\n\nПолностью удалит интерактивный пост из базы данных.",
+        
+        "admin_interactive_stats": "📊 <b>Статистика интерактивов</b>\n\nИспользуйте: <code>/admin_interactive_stats</code>\n\nПокажет статистику по всем активным интерактивам."
     }
     
     return command_info.get(command_name, f"ℹ️ Информация о команде {command_name} недоступна.") 
+
+# Команды для управления интерактивами
+async def admin_add_interactive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Добавить интерактивный пост"""
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Доступ запрещен.")
+        return
+    
+    if len(context.args) < 3:
+        await update.message.reply_text(
+            "❌ Недостаточно аргументов!\n\n"
+            "Используйте: <code>/admin_add_interactive [ссылка] [название] [описание] [награда]</code>\n\n"
+            "Пример: <code>/admin_add_interactive https://t.me/post/123 'Тест интерактива' 'Описание поста' 15</code>",
+            parse_mode="HTML"
+        )
+        return
+    
+    try:
+        post_url = context.args[0]
+        title = context.args[1]
+        description = " ".join(context.args[2:-1]) if len(context.args) > 3 else context.args[2]
+        reward_stars = int(context.args[-1]) if len(context.args) > 3 else 15
+        
+        if reward_stars <= 0 or reward_stars > 100:
+            await update.message.reply_text("❌ Награда должна быть от 1 до 100 звезд!")
+            return
+        
+        # Создаем интерактивный пост
+        result = pb.create_interactive_post(post_url, title, description, reward_stars)
+        
+        await update.message.reply_text(
+            f"✅ <b>Интерактивный пост добавлен!</b>\n\n"
+            f"📝 <b>Название:</b> {title}\n"
+            f"🔗 <b>Ссылка:</b> {post_url}\n"
+            f"📄 <b>Описание:</b> {description}\n"
+            f"⭐ <b>Награда:</b> {reward_stars} звезд\n"
+            f"🆔 <b>ID:</b> {result['id']}",
+            parse_mode="HTML"
+        )
+        
+    except ValueError:
+        await update.message.reply_text("❌ Награда должна быть числом!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка при создании интерактива: {str(e)}")
+
+async def admin_list_interactives_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать список активных интерактивов"""
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Доступ запрещен.")
+        return
+    
+    try:
+        interactives = pb.get_active_interactive_posts()
+        
+        if not interactives:
+            await update.message.reply_text("📋 <b>Активных интерактивов нет</b>", parse_mode="HTML")
+            return
+        
+        message = "📋 <b>Активные интерактивы:</b>\n\n"
+        for i, interactive in enumerate(interactives, 1):
+            message += (
+                f"{i}. <b>{interactive['title']}</b>\n"
+                f"🔗 {interactive['post_url']}\n"
+                f"📄 {interactive['description']}\n"
+                f"⭐ Награда: {interactive['reward_stars']} звезд\n"
+                f"🆔 ID: {interactive['id']}\n\n"
+            )
+        
+        await update.message.reply_text(message, parse_mode="HTML")
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка при получении списка интерактивов: {str(e)}")
+
+async def admin_deactivate_interactive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Деактивировать интерактивный пост"""
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Доступ запрещен.")
+        return
+    
+    if len(context.args) != 1:
+        await update.message.reply_text(
+            "❌ Недостаточно аргументов!\n\n"
+            "Используйте: <code>/admin_deactivate_interactive [ID]</code>\n\n"
+            "Пример: <code>/admin_deactivate_interactive post_123</code>",
+            parse_mode="HTML"
+        )
+        return
+    
+    try:
+        post_id = context.args[0]
+        
+        # Получаем информацию о посте
+        interactive = pb.get_interactive_post(post_id)
+        if not interactive:
+            await update.message.reply_text("❌ Интерактивный пост не найден!")
+            return
+        
+        # Деактивируем пост
+        pb.deactivate_interactive_post(post_id)
+        
+        await update.message.reply_text(
+            f"✅ <b>Интерактивный пост деактивирован!</b>\n\n"
+            f"📝 <b>Название:</b> {interactive['title']}\n"
+            f"🆔 <b>ID:</b> {post_id}",
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка при деактивации интерактива: {str(e)}")
+
+async def admin_delete_interactive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Удалить интерактивный пост"""
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Доступ запрещен.")
+        return
+    
+    if len(context.args) != 1:
+        await update.message.reply_text(
+            "❌ Недостаточно аргументов!\n\n"
+            "Используйте: <code>/admin_delete_interactive [ID]</code>\n\n"
+            "Пример: <code>/admin_delete_interactive post_123</code>",
+            parse_mode="HTML"
+        )
+        return
+    
+    try:
+        post_id = context.args[0]
+        
+        # Получаем информацию о посте
+        interactive = pb.get_interactive_post(post_id)
+        if not interactive:
+            await update.message.reply_text("❌ Интерактивный пост не найден!")
+            return
+        
+        # Удаляем пост
+        pb.delete_interactive_post(post_id)
+        
+        await update.message.reply_text(
+            f"✅ <b>Интерактивный пост удален!</b>\n\n"
+            f"📝 <b>Название:</b> {interactive['title']}\n"
+            f"🆔 <b>ID:</b> {post_id}",
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка при удалении интерактива: {str(e)}")
+
+async def admin_interactive_stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать статистику интерактивов"""
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Доступ запрещен.")
+        return
+    
+    try:
+        interactives = pb.get_active_interactive_posts()
+        
+        if not interactives:
+            await update.message.reply_text("📊 <b>Активных интерактивов нет</b>", parse_mode="HTML")
+            return
+        
+        message = "📊 <b>Статистика интерактивов:</b>\n\n"
+        total_rewards = 0
+        
+        for interactive in interactives:
+            # Здесь можно добавить подсчет количества участников
+            # пока просто показываем базовую информацию
+            message += (
+                f"📝 <b>{interactive['title']}</b>\n"
+                f"⭐ Награда: {interactive['reward_stars']} звезд\n"
+                f"🆔 ID: {interactive['id']}\n\n"
+            )
+            total_rewards += interactive['reward_stars']
+        
+        message += f"📈 <b>Всего активных интерактивов:</b> {len(interactives)}\n"
+        message += f"💰 <b>Общая награда:</b> {total_rewards} звезд"
+        
+        await update.message.reply_text(message, parse_mode="HTML")
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка при получении статистики: {str(e)}")

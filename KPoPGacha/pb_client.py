@@ -905,21 +905,92 @@ class PBClient:
 
     def get_popular_cards(self, limit=10):
         """Получить популярные карточки"""
-        # Получаем все карточки
-        cards = self.get_all_cards()
-        
-        # Получаем статистику владения для каждой карточки
-        popular_cards = []
-        for card in cards:
-            ownership_stats = self.get_card_ownership_stats(card["id"])
-            card_with_stats = {
-                **card,
-                "owners_count": ownership_stats.get("total_owners", 0),
-                "total_copies": ownership_stats.get("total_copies", 0)
-            }
-            popular_cards.append(card_with_stats)
-        
-        # Сортируем по количеству владельцев
-        popular_cards.sort(key=lambda x: x.get("owners_count", 0), reverse=True)
-        
-        return popular_cards[:limit] 
+        # Заглушка - возвращаем случайные карточки
+        all_cards = self.get_all_cards()
+        if len(all_cards) <= limit:
+            return all_cards
+        return random.sample(all_cards, limit)
+
+    # Функции для управления интерактивами
+    def create_interactive_post(self, post_url, title, description, reward_stars=15):
+        """Создать новый интерактивный пост"""
+        url = f"{self.base_url}/collections/interactive_posts/records"
+        data = {
+            "post_url": post_url,
+            "title": title,
+            "description": description,
+            "reward_stars": reward_stars,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        resp = httpx.post(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_active_interactive_posts(self):
+        """Получить все активные интерактивные посты"""
+        url = f"{self.base_url}/collections/interactive_posts/records"
+        params = {"filter": "is_active=true"}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        return resp.json().get("items", [])
+
+    def get_interactive_post(self, post_id):
+        """Получить интерактивный пост по ID"""
+        url = f"{self.base_url}/collections/interactive_posts/records/{post_id}"
+        resp = httpx.get(url, headers=self.headers)
+        resp.raise_for_status()
+        return resp.json()
+
+    def deactivate_interactive_post(self, post_id):
+        """Деактивировать интерактивный пост"""
+        url = f"{self.base_url}/collections/interactive_posts/records/{post_id}"
+        data = {"is_active": False}
+        resp = httpx.patch(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def delete_interactive_post(self, post_id):
+        """Удалить интерактивный пост"""
+        url = f"{self.base_url}/collections/interactive_posts/records/{post_id}"
+        resp = httpx.delete(url, headers=self.headers)
+        resp.raise_for_status()
+        return True
+
+    def check_user_interactive_claim(self, user_id, post_id):
+        """Проверить, получил ли пользователь награду за интерактив"""
+        url = f"{self.base_url}/collections/interactive_claims/records"
+        params = {"filter": f'user_id="{user_id}" && post_id="{post_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        return len(items) > 0
+
+    def claim_interactive_reward(self, user_id, post_id, reward_stars):
+        """Записать получение награды за интерактив"""
+        url = f"{self.base_url}/collections/interactive_claims/records"
+        data = {
+            "user_id": user_id,
+            "post_id": post_id,
+            "reward_stars": reward_stars,
+            "claimed_at": datetime.now(timezone.utc).isoformat()
+        }
+        resp = httpx.post(url, headers=self.headers, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_user_interactive_claims(self, user_id):
+        """Получить все интерактивы, за которые пользователь получил награду"""
+        url = f"{self.base_url}/collections/interactive_claims/records"
+        params = {"filter": f'user_id="{user_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        return resp.json().get("items", [])
+
+    def get_user_achievements(self, user_id):
+        """Получить достижения пользователя"""
+        url = f"{self.base_url}/collections/collection_achievements/records"
+        params = {"filter": f'user_id="{user_id}"'}
+        resp = httpx.get(url, headers=self.headers, params=params)
+        resp.raise_for_status()
+        return resp.json().get("items", []) 

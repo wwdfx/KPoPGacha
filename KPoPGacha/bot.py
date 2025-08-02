@@ -1170,6 +1170,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎯 Pity", callback_data="pity"), InlineKeyboardButton("🏆 Лидерборд", callback_data="leaderboard")],
         [InlineKeyboardButton("🛒 Аукцион", callback_data="auctions")],
         [InlineKeyboardButton("🏅 Достижения", callback_data="achievements")],
+        [InlineKeyboardButton("🎯 Интерактивы", callback_data="interactives")],
         [InlineKeyboardButton("🎤 Баннер", callback_data="banner")],
         [InlineKeyboardButton("⚙️ Настройки", callback_data="settings")],
     ]
@@ -1228,6 +1229,9 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "achievements":
         print(f"DEBUG: [menu_callback] Выполняю achievements")
         await achievements(update, context)
+    elif data == "interactives":
+        print(f"DEBUG: [menu_callback] Выполняю interactives")
+        await interactives(update, context)
     elif data == "banner":
         print(f"DEBUG: [menu_callback] Выполняю banner")
         await banner_start(update, context)
@@ -1513,34 +1517,174 @@ async def showcard_refresh_callback(update: Update, context: ContextTypes.DEFAUL
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pb_user = pb.get_user_by_telegram_id(user.id)
-    target = get_reply_target(update, prefer_edit=hasattr(update, 'callback_query') and update.callback_query is not None)
     if not pb_user:
-        await target.reply_text("Профиль не найден. Используйте /start.")
+        await update.message.reply_text("❌ Пользователь не найден!")
         return
-    achs = []
+    
     # Получаем все достижения пользователя
-    url = f"{pb.base_url}/collections/collection_achievements/records"
-    params = {"filter": f'user_id="{pb_user["id"]}"', "perPage": 200}
-    import httpx
-    resp = httpx.get(url, headers=pb.headers, params=params)
-    resp.raise_for_status()
-    items = resp.json().get("items", [])
-    if not items:
-        await target.reply_text("У вас пока нет достижений по коллекциям.")
+    achievements = pb.get_user_achievements(pb_user["id"])
+    
+    if not achievements:
+        await update.message.reply_text(
+            "🏅 <b>Достижения</b>\n\nУ вас пока нет достижений. Собирайте коллекции карточек, чтобы получить достижения!",
+            parse_mode="HTML",
+            reply_markup=back_keyboard()
+        )
         return
-    # Группируем по группе и альбому
-    items.sort(key=lambda x: (x.get("group", ""), x.get("album", "")))
-    text = "<b>🏅 Ваши достижения по коллекциям:</b>\n"
-    for ach in items:
-        group = ach.get("group", "-")
-        album = ach.get("album", "-")
-        level = ach.get("level", 0)
-        if level > 0:
-            text += f"\n<b>{group}</b> — <b>{album}</b>: <b>{level*25}%</b>"
-    if hasattr(target, 'edit_text'):
-        await target.edit_text(text, parse_mode="HTML")
-    else:
-        await target.reply_text(text, parse_mode="HTML")
+    
+    message = "🏅 <b>Ваши достижения:</b>\n\n"
+    for achievement in achievements:
+        group = achievement.get("group", "Неизвестно")
+        album = achievement.get("album", "Неизвестно")
+        level = achievement.get("level", 0)
+        completion = achievement.get("completion", 0)
+        
+        message += f"📁 <b>{group} — {album}</b>\n"
+        message += f"📊 Прогресс: {completion}%\n"
+        message += f"🏆 Уровень: {level}\n\n"
+    
+    await update.message.reply_text(
+        message,
+        parse_mode="HTML",
+        reply_markup=back_keyboard()
+    )
+
+async def interactives(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать доступные интерактивы"""
+    user = update.effective_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    if not pb_user:
+        await update.message.reply_text("❌ Пользователь не найден!")
+        return
+    
+    try:
+        # Получаем активные интерактивы
+        active_interactives = pb.get_active_interactive_posts()
+        
+        if not active_interactives:
+            await update.message.reply_text(
+                "🎯 <b>Интерактивы</b>\n\nСейчас нет доступных интерактивов. Следите за обновлениями!",
+                parse_mode="HTML",
+                reply_markup=back_keyboard()
+            )
+            return
+        
+        # Получаем уже полученные награды пользователя
+        user_claims = pb.get_user_interactive_claims(pb_user["id"])
+        claimed_ids = {claim["post_id"] for claim in user_claims}
+        
+        message = "🎯 <b>Доступные интерактивы:</b>\n\n"
+        keyboard = []
+        
+        for interactive in active_interactives:
+            post_id = interactive["id"]
+            title = interactive["title"]
+            description = interactive["description"]
+            post_url = interactive["post_url"]
+            reward_stars = interactive["reward_stars"]
+            
+            if post_id in claimed_ids:
+                # Уже получена награда
+                message += f"✅ <b>{title}</b>\n"
+                message += f"📄 {description}\n"
+                message += f"⭐ Награда: {reward_stars} звезд (получено)\n\n"
+            else:
+                # Можно получить награду
+                message += f"🎁 <b>{title}</b>\n"
+                message += f"📄 {description}\n"
+                message += f"⭐ Награда: {reward_stars} звезд\n\n"
+                keyboard.append([InlineKeyboardButton(
+                    f"🎁 Получить награду за '{title}'", 
+                    callback_data=f"claim_interactive_{post_id}"
+                )])
+        
+        if keyboard:
+            keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="menu")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+        else:
+            reply_markup = back_keyboard()
+        
+        await update.message.reply_text(
+            message,
+            parse_mode="HTML",
+            reply_markup=reply_markup
+        )
+        
+    except Exception as e:
+        await update.message.reply_text(
+            f"❌ Ошибка при получении интерактивов: {str(e)}",
+            reply_markup=back_keyboard()
+        )
+
+async def claim_interactive_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка получения награды за интерактив"""
+    query = update.callback_query
+    await query.answer()
+    
+    user = query.from_user
+    pb_user = pb.get_user_by_telegram_id(user.id)
+    if not pb_user:
+        await query.edit_message_text("❌ Пользователь не найден!")
+        return
+    
+    try:
+        # Извлекаем ID поста из callback_data
+        post_id = query.data.replace("claim_interactive_", "")
+        
+        # Проверяем, не получил ли уже пользователь награду
+        if pb.check_user_interactive_claim(pb_user["id"], post_id):
+            await query.edit_message_text(
+                "❌ Вы уже получили награду за этот интерактив!",
+                reply_markup=back_keyboard()
+            )
+            return
+        
+        # Получаем информацию об интерактиве
+        interactive = pb.get_interactive_post(post_id)
+        if not interactive:
+            await query.edit_message_text(
+                "❌ Интерактивный пост не найден!",
+                reply_markup=back_keyboard()
+            )
+            return
+        
+        # Проверяем, активен ли пост
+        if not interactive.get("is_active", False):
+            await query.edit_message_text(
+                "❌ Этот интерактив больше не активен!",
+                reply_markup=back_keyboard()
+            )
+            return
+        
+        # Записываем получение награды
+        reward_stars = interactive["reward_stars"]
+        pb.claim_interactive_reward(pb_user["id"], post_id, reward_stars)
+        
+        # Добавляем звезды пользователю
+        current_stars = pb_user.get("stars", 0)
+        new_stars = current_stars + reward_stars
+        pb.update_user_stars_and_pity(
+            pb_user["id"],
+            new_stars,
+            pb_user.get("pity_legendary", 0),
+            pb_user.get("pity_void", 0)
+        )
+        
+        await query.edit_message_text(
+            f"🎉 <b>Награда получена!</b>\n\n"
+            f"📝 <b>{interactive['title']}</b>\n"
+            f"⭐ <b>Получено звезд:</b> {reward_stars}\n"
+            f"💰 <b>Всего звезд:</b> {new_stars}\n\n"
+            f"Спасибо за участие в интерактиве!",
+            parse_mode="HTML",
+            reply_markup=back_keyboard()
+        )
+        
+    except Exception as e:
+        await query.edit_message_text(
+            f"❌ Ошибка при получении награды: {str(e)}",
+            reply_markup=back_keyboard()
+        )
 
 async def send_daily_bonus_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -1959,6 +2103,7 @@ def main():
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
     app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
+    app.add_handler(CallbackQueryHandler(claim_interactive_callback, pattern="^claim_interactive_"))
     
     # Добавляем админ-панель ПЕРЕД обработчиками админ-callback'ов
     from admin_panel import (
@@ -1972,6 +2117,8 @@ def main():
         admin_event_start_command, admin_event_end_command, admin_give_event_rewards_command, admin_set_event_banner_command,
         admin_warn_command, admin_mute_command, admin_unmute_command, admin_user_history_command,
         admin_daily_report_command, admin_weekly_report_command, admin_revenue_stats_command, admin_popular_cards_command,
+        admin_add_interactive_command, admin_list_interactives_command, admin_deactivate_interactive_command,
+        admin_delete_interactive_command, admin_interactive_stats_command,
         get_admin_conversation_handler
     )
     
@@ -2022,6 +2169,11 @@ def main():
     app.add_handler(CommandHandler("admin_weekly_report", admin_weekly_report_command))
     app.add_handler(CommandHandler("admin_revenue_stats", admin_revenue_stats_command))
     app.add_handler(CommandHandler("admin_popular_cards", admin_popular_cards_command))
+    app.add_handler(CommandHandler("admin_add_interactive", admin_add_interactive_command))
+    app.add_handler(CommandHandler("admin_list_interactives", admin_list_interactives_command))
+    app.add_handler(CommandHandler("admin_deactivate_interactive", admin_deactivate_interactive_command))
+    app.add_handler(CommandHandler("admin_delete_interactive", admin_delete_interactive_command))
+    app.add_handler(CommandHandler("admin_interactive_stats", admin_interactive_stats_command))
     
 
     
