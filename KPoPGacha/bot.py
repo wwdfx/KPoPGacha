@@ -35,17 +35,19 @@ def get_cached_image_path(image_url):
     if os.path.exists(cache_path):
         return cache_path
     
-    # Скачиваем изображение
+    # Если файла нет в кэше, скачиваем его
     try:
-        response = requests.get(image_url, timeout=10)
+        print(f"📥 Скачиваю изображение: {image_url}")
+        response = requests.get(image_url, timeout=30)
         response.raise_for_status()
         
         with open(cache_path, 'wb') as f:
             f.write(response.content)
         
+        print(f"✓ Сохранено в кэш: {cache_path}")
         return cache_path
     except Exception as e:
-        print(f"Ошибка скачивания изображения {image_url}: {e}")
+        print(f"✗ Ошибка скачивания изображения {image_url}: {e}")
         return None
 
 # Шансы выпадения по редкости (сумма = 100)
@@ -386,7 +388,11 @@ async def pull_once(user, pb_user, update, pull_type="single"):
     if card.get("image_url"):
         # Получаем кэшированное изображение
         cached_image_path = get_cached_image_path(card["image_url"])
-        overlayed_path = apply_overlay(card["image_url"], card["rarity"])
+        
+        # Применяем оверлей только если есть изображение
+        overlayed_path = None
+        if cached_image_path or card.get("image_url"):
+            overlayed_path = apply_overlay(card["image_url"], card["rarity"])
         
         if overlayed_path:
             with open(overlayed_path, "rb") as img_file:
@@ -472,7 +478,11 @@ async def pull10_impl(user, pb_user, update):
             caption += " <i>(первое получение)</i>"
         # Получаем кэшированное изображение
         cached_image_path = get_cached_image_path(card.get("image_url"))
-        overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
+        
+        # Применяем оверлей только если есть изображение
+        overlayed_path = None
+        if cached_image_path or card.get("image_url"):
+            overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
         
         if overlayed_path:
             media.append(InputMediaPhoto(open(overlayed_path, "rb"), caption=caption, parse_mode="HTML"))
