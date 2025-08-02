@@ -76,7 +76,22 @@ async def admin_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         return ConversationHandler.END
     
     elif query.data == "admin_back":
-        return await admin_start(update, context)
+        # Возвращаемся к главному меню админ-панели
+        keyboard = [
+            [InlineKeyboardButton("⭐ Добавить всем звезд", callback_data="admin_add_stars_all")],
+            [InlineKeyboardButton("👤 Добавить звезд пользователю", callback_data="admin_add_stars_user")],
+            [InlineKeyboardButton("🎴 Выдать карточки пользователю", callback_data="admin_give_cards")],
+            [InlineKeyboardButton("📊 Статистика", callback_data="admin_stats")],
+            [InlineKeyboardButton("🔄 Сбросить pity всем", callback_data="admin_reset_pity")],
+            [InlineKeyboardButton("❌ Отмена", callback_data="admin_cancel")]
+        ]
+        
+        await query.edit_message_text(
+            "🔧 <b>Админ-панель</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return ADMIN_MENU
 
 async def add_stars_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка ввода количества звезд"""
@@ -273,4 +288,165 @@ def get_admin_conversation_handler():
         },
         fallbacks=[CommandHandler("cancel", admin_cancel)],
         per_message=False
-    ) 
+    )
+
+# Функция для обработки админ-callback'ов вне ConversationHandler
+async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка админ-callback'ов"""
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    
+    # Проверяем права доступа
+    user_id = query.from_user.id
+    if user_id not in ADMIN_IDS:
+        await query.edit_message_text("⛔ Доступ запрещен.")
+        return
+    
+    # Обрабатываем админ-команды
+    if data == "admin_add_stars_all":
+        await query.edit_message_text(
+            "⭐ <b>Добавить всем звезд</b>\n\nВведите количество звезд:\n\n<i>Используйте команду /admin_stars [количество]</i>",
+            parse_mode="HTML"
+        )
+        return
+    
+    elif data == "admin_add_stars_user":
+        await query.edit_message_text(
+            "👤 <b>Добавить звезд пользователю</b>\n\nВведите Telegram ID пользователя:\n\n<i>Используйте команду /admin_stars_user [ID] [количество]</i>",
+            parse_mode="HTML"
+        )
+        return
+    
+    elif data == "admin_give_cards":
+        await query.edit_message_text(
+            "🎴 <b>Выдать карточки пользователю</b>\n\nВведите Telegram ID пользователя:\n\n<i>Используйте команду /admin_give_cards [ID] [количество]</i>",
+            parse_mode="HTML"
+        )
+        return
+    
+    elif data == "admin_stats":
+        stats = await get_admin_stats()
+        await query.edit_message_text(
+            f"📊 <b>Статистика</b>\n\n{stats}",
+            parse_mode="HTML"
+        )
+        keyboard = [[InlineKeyboardButton("⬅️ Назад", callback_data="admin_back")]]
+        await query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
+        return
+    
+    elif data == "admin_reset_pity":
+        await reset_pity_all()
+        await query.edit_message_text(
+            "🔄 <b>Pity сброшен для всех пользователей</b>",
+            parse_mode="HTML"
+        )
+        keyboard = [[InlineKeyboardButton("⬅️ Назад", callback_data="admin_back")]]
+        await query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
+        return
+    
+    elif data == "admin_cancel":
+        await query.edit_message_text("❌ Операция отменена.")
+        return
+    
+    elif data == "admin_back":
+        # Возвращаемся к главному меню админ-панели
+        keyboard = [
+            [InlineKeyboardButton("⭐ Добавить всем звезд", callback_data="admin_add_stars_all")],
+            [InlineKeyboardButton("👤 Добавить звезд пользователю", callback_data="admin_add_stars_user")],
+            [InlineKeyboardButton("🎴 Выдать карточки пользователю", callback_data="admin_give_cards")],
+            [InlineKeyboardButton("📊 Статистика", callback_data="admin_stats")],
+            [InlineKeyboardButton("🔄 Сбросить pity всем", callback_data="admin_reset_pity")],
+            [InlineKeyboardButton("❌ Отмена", callback_data="admin_cancel")]
+        ]
+        
+        await query.edit_message_text(
+            "🔧 <b>Админ-панель</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return 
+
+# Команды для админ-функций
+async def admin_stars_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда для добавления звезд всем пользователям"""
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Доступ запрещен.")
+        return
+    
+    if not context.args or len(context.args) != 1:
+        await update.message.reply_text("❌ Использование: /admin_stars [количество]")
+        return
+    
+    try:
+        amount = int(context.args[0])
+        if amount <= 0:
+            await update.message.reply_text("❌ Количество должно быть положительным!")
+            return
+        
+        await add_stars_to_all(amount)
+        await update.message.reply_text(f"✅ Добавлено {amount} звезд всем пользователям!")
+        
+    except ValueError:
+        await update.message.reply_text("❌ Введите корректное число!")
+
+async def admin_stars_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда для добавления звезд конкретному пользователю"""
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Доступ запрещен.")
+        return
+    
+    if not context.args or len(context.args) != 2:
+        await update.message.reply_text("❌ Использование: /admin_stars_user [ID] [количество]")
+        return
+    
+    try:
+        target_id = int(context.args[0])
+        amount = int(context.args[1])
+        
+        if amount <= 0:
+            await update.message.reply_text("❌ Количество должно быть положительным!")
+            return
+        
+        pb_user = pb.get_user_by_telegram_id(target_id)
+        if not pb_user:
+            await update.message.reply_text("❌ Пользователь не найден!")
+            return
+        
+        await add_stars_to_user(target_id, amount)
+        await update.message.reply_text(f"✅ Добавлено {amount} звезд пользователю {pb_user.get('name', 'Неизвестно')}!")
+        
+    except ValueError:
+        await update.message.reply_text("❌ Введите корректные числа!")
+
+async def admin_give_cards_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда для выдачи карточек пользователю"""
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Доступ запрещен.")
+        return
+    
+    if not context.args or len(context.args) != 2:
+        await update.message.reply_text("❌ Использование: /admin_give_cards [ID] [количество]")
+        return
+    
+    try:
+        target_id = int(context.args[0])
+        amount = int(context.args[1])
+        
+        if amount <= 0 or amount > 100:
+            await update.message.reply_text("❌ Количество должно быть от 1 до 100!")
+            return
+        
+        pb_user = pb.get_user_by_telegram_id(target_id)
+        if not pb_user:
+            await update.message.reply_text("❌ Пользователь не найден!")
+            return
+        
+        await give_random_cards(target_id, amount)
+        await update.message.reply_text(f"✅ Выдано {amount} случайных карточек пользователю {pb_user.get('name', 'Неизвестно')}!")
+        
+    except ValueError:
+        await update.message.reply_text("❌ Введите корректные числа!") 

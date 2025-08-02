@@ -269,7 +269,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Добавляем админ-команды только для админов
     if user_id in ADMIN_IDS:
-        help_text += "\n\n<b>Админ-команды:</b>\n<b>/admin</b> — админ-панель"
+        help_text += "\n\n<b>Админ-команды:</b>\n<b>/admin</b> — админ-панель\n<b>/admin_stars [количество]</b> — добавить всем звезд\n<b>/admin_stars_user [ID] [количество]</b> — добавить звезд пользователю\n<b>/admin_give_cards [ID] [количество]</b> — выдать карточки пользователю"
     
     if target:
         await target.reply_text(help_text, parse_mode="HTML")
@@ -1188,6 +1188,9 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"DEBUG: [menu_callback] query.data: {query.data}")
     print(f"DEBUG: [menu_callback] user_id: {query.from_user.id}")
     data = query.data
+    
+
+    
     if data == "menu":
         print(f"DEBUG: [menu_callback] Выполняю menu")
         await menu(update, context)
@@ -1962,6 +1965,15 @@ def main():
     app.add_handler(auction_conv)
     app.add_handler(promo_conv)
     app.add_handler(addpromo_conv)
+    
+    # Добавляем обработчики админ-callback'ов
+    from admin_panel import handle_admin_callback, admin_stars_command, admin_stars_user_command, admin_give_cards_command
+    app.add_handler(CallbackQueryHandler(handle_admin_callback, pattern="^admin_"))
+    
+    # Добавляем админ-команды
+    app.add_handler(CommandHandler("admin_stars", admin_stars_command))
+    app.add_handler(CommandHandler("admin_stars_user", admin_stars_user_command))
+    app.add_handler(CommandHandler("admin_give_cards", admin_give_cards_command))
     
     # Добавляем админ-панель
     admin_conv = get_admin_conversation_handler()
