@@ -463,23 +463,6 @@ async def pull10_impl(user, pb_user, update):
     if levelup:
         rank = pb.get_rank(updated_user.get('level', 1))
         await target.reply_text(f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>", parse_mode="HTML")
-    # Отправляем альбом, если есть хотя бы 2 картинки
-    if media:
-        try:
-            await target.reply_media_group(media)
-        except Exception:
-            # Если не поддерживается альбом — отправляем по одной
-            for m in media:
-                await target.reply_photo(m.media, caption=m.caption, parse_mode="HTML")
-        # Чистим временные файлы
-        for path in captions:
-            if path:
-                try:
-                    os.unlink(path)
-                except Exception:
-                    pass
-    if results and len(results) > 1:
-        await target.reply_text("\n".join(results), parse_mode="HTML")
 
 # --- Новый инвентарь: группировка по группам и альбомам ---
 async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
