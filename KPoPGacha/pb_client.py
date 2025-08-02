@@ -912,7 +912,7 @@ class PBClient:
         return random.sample(all_cards, limit)
 
     # Функции для управления интерактивами
-    def create_interactive_post(self, post_url, title, description, reward_stars=15):
+    def create_interactive_post(self, post_url, title, description, reward_stars=15, total_answers=15, reward_per_answer=15):
         """Создать новый интерактивный пост"""
         url = f"{self.base_url}/collections/interactive_posts/records"
         data = {
@@ -920,6 +920,8 @@ class PBClient:
             "title": title,
             "description": description,
             "reward_stars": reward_stars,
+            "total_answers": total_answers,
+            "reward_per_answer": reward_per_answer,
             "is_active": True,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
@@ -966,13 +968,14 @@ class PBClient:
         items = resp.json().get("items", [])
         return len(items) > 0
 
-    def claim_interactive_reward(self, user_id, post_id, reward_stars):
+    def claim_interactive_reward(self, user_id, post_id, reward_stars, answers_count=0):
         """Записать получение награды за интерактив"""
         url = f"{self.base_url}/collections/interactive_claims/records"
         data = {
             "user_id": user_id,
             "post_id": post_id,
             "reward_stars": reward_stars,
+            "answers_count": answers_count,
             "claimed_at": datetime.now(timezone.utc).isoformat()
         }
         resp = httpx.post(url, headers=self.headers, json=data)
@@ -986,6 +989,46 @@ class PBClient:
         resp = httpx.get(url, headers=self.headers, params=params)
         resp.raise_for_status()
         return resp.json().get("items", [])
+
+    def get_interactive_stats(self):
+        """Получить статистику по интерактивам"""
+        try:
+            # Получаем все активные интерактивы
+            active_interactives = self.get_active_interactive_posts()
+            
+            # Получаем все записи о наградах
+            url = f"{self.base_url}/collections/interactive_claims/records"
+            resp = httpx.get(url, headers=self.headers)
+            resp.raise_for_status()
+            all_claims = resp.json().get("items", [])
+            
+            stats = {
+                "total_interactives": len(active_interactives),
+                "total_claims": len(all_claims),
+                "total_rewards_given": sum(claim.get("reward_stars", 0) for claim in all_claims),
+                "interactives": []
+            }
+            
+            for interactive in active_interactives:
+                post_id = interactive["id"]
+                post_claims = [claim for claim in all_claims if claim.get("post_id") == post_id]
+                
+                interactive_stats = {
+                    "id": post_id,
+                    "title": interactive["title"],
+                    "total_answers": interactive.get("total_answers", 15),
+                    "reward_per_answer": interactive.get("reward_per_answer", 15),
+                    "max_reward": interactive.get("total_answers", 15) * interactive.get("reward_per_answer", 15),
+                    "claims_count": len(post_claims),
+                    "total_rewarded": sum(claim.get("reward_stars", 0) for claim in post_claims)
+                }
+                stats["interactives"].append(interactive_stats)
+            
+            return stats
+            
+        except Exception as e:
+            print(f"Error getting interactive stats: {e}")
+            return None
 
     def get_user_achievements(self, user_id):
         """Получить достижения пользователя"""

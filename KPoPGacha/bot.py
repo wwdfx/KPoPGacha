@@ -1581,18 +1581,24 @@ async def interactives(update: Update, context: ContextTypes.DEFAULT_TYPE):
             title = interactive["title"]
             description = interactive["description"]
             post_url = interactive["post_url"]
-            reward_stars = interactive["reward_stars"]
+            total_answers = interactive.get("total_answers", 15)
+            reward_per_answer = interactive.get("reward_per_answer", 15)
+            total_reward = total_answers * reward_per_answer
             
             if post_id in claimed_ids:
                 # Уже получена награда
                 message += f"✅ <b>{title}</b>\n"
                 message += f"📄 {description}\n"
-                message += f"⭐ Награда: {reward_stars} звезд (получено)\n\n"
+                message += f"❓ Вопросов: {total_answers}\n"
+                message += f"⭐ Награда за ответ: {reward_per_answer} звезд\n"
+                message += f"💰 Общая награда: {total_reward} звезд (получено)\n\n"
             else:
                 # Можно получить награду
                 message += f"🎁 <b>{title}</b>\n"
                 message += f"📄 {description}\n"
-                message += f"⭐ Награда: {reward_stars} звезд\n\n"
+                message += f"❓ Вопросов: {total_answers}\n"
+                message += f"⭐ Награда за ответ: {reward_per_answer} звезд\n"
+                message += f"💰 Общая награда: {total_reward} звезд\n\n"
                 keyboard.append([InlineKeyboardButton(
                     f"🎁 Получить награду за '{title}'", 
                     callback_data=f"claim_interactive_{post_id}"
@@ -1658,7 +1664,10 @@ async def claim_interactive_callback(update: Update, context: ContextTypes.DEFAU
         
         # Записываем получение награды
         reward_stars = interactive["reward_stars"]
-        pb.claim_interactive_reward(pb_user["id"], post_id, reward_stars)
+        total_answers = interactive.get("total_answers", 15)
+        reward_per_answer = interactive.get("reward_per_answer", 15)
+        
+        pb.claim_interactive_reward(pb_user["id"], post_id, reward_stars, total_answers)
         
         # Добавляем звезды пользователю
         current_stars = pb_user.get("stars", 0)
@@ -1673,8 +1682,10 @@ async def claim_interactive_callback(update: Update, context: ContextTypes.DEFAU
         await query.edit_message_text(
             f"🎉 <b>Награда получена!</b>\n\n"
             f"📝 <b>{interactive['title']}</b>\n"
-            f"⭐ <b>Получено звезд:</b> {reward_stars}\n"
-            f"💰 <b>Всего звезд:</b> {new_stars}\n\n"
+            f"❓ Вопросов: {total_answers}\n"
+            f"⭐ Награда за ответ: {reward_per_answer} звезд\n"
+            f"💰 <b>Получено звезд:</b> {reward_stars}\n"
+            f"💎 <b>Всего звезд:</b> {new_stars}\n\n"
             f"Спасибо за участие в интерактиве!",
             parse_mode="HTML",
             reply_markup=back_keyboard()

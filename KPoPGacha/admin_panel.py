@@ -1769,15 +1769,11 @@ def get_command_info(command_name):
         
         "admin_popular_cards": "🔥 <b>Популярные карточки</b>\n\nИспользуйте: <code>/admin_popular_cards [количество]</code>\n\nПример: <code>/admin_popular_cards 10</code>\n\nПокажет самые популярные карточки.",
         
-        "admin_add_interactive": "➕ <b>Добавить интерактивный пост</b>\n\nИспользуйте: <code>/admin_add_interactive [ссылка] [название] [описание] [награда]</code>\n\nПример: <code>/admin_add_interactive https://t.me/post/123 'Тест интерактива' 'Описание поста' 15</code>\n\nСоздаст новый интерактивный пост с указанной наградой.",
-        
-        "admin_list_interactives": "📋 <b>Список интерактивов</b>\n\nИспользуйте: <code>/admin_list_interactives</code>\n\nПокажет все активные интерактивные посты.",
-        
+        "admin_add_interactive": "➕ <b>Добавить интерактивный пост</b>\n\nИспользуйте: <code>/admin_add_interactive [ссылка] [название] [описание] [награда_за_ответ] [количество_вопросов]</code>\n\nПример: <code>/admin_add_interactive https://t.me/c/2451259502/31295 'Тест интерактива' 'Описание поста' 15 15</code>\n\nСоздаст новый интерактивный пост с указанной наградой за каждый ответ.",
+        "admin_list_interactives": "📋 <b>Список интерактивов</b>\n\nИспользуйте: <code>/admin_list_interactives</code>\n\nПокажет все активные интерактивные посты с детальной информацией.",
         "admin_deactivate_interactive": "❌ <b>Деактивировать интерактив</b>\n\nИспользуйте: <code>/admin_deactivate_interactive [ID]</code>\n\nПример: <code>/admin_deactivate_interactive post_123</code>\n\nДеактивирует интерактивный пост (скроет из списка доступных).",
-        
         "admin_delete_interactive": "🗑️ <b>Удалить интерактив</b>\n\nИспользуйте: <code>/admin_delete_interactive [ID]</code>\n\nПример: <code>/admin_delete_interactive post_123</code>\n\nПолностью удалит интерактивный пост из базы данных.",
-        
-        "admin_interactive_stats": "📊 <b>Статистика интерактивов</b>\n\nИспользуйте: <code>/admin_interactive_stats</code>\n\nПокажет статистику по всем активным интерактивам."
+        "admin_interactive_stats": "📊 <b>Статистика интерактивов</b>\n\nИспользуйте: <code>/admin_interactive_stats</code>\n\nПокажет детальную статистику по всем активным интерактивам, включая количество участников и выданные награды."
     }
     
     return command_info.get(command_name, f"ℹ️ Информация о команде {command_name} недоступна.") 
@@ -1940,27 +1936,29 @@ async def admin_interactive_stats_command(update: Update, context: ContextTypes.
         return
     
     try:
-        interactives = pb.get_active_interactive_posts()
+        stats = pb.get_interactive_stats()
         
-        if not interactives:
+        if not stats or stats["total_interactives"] == 0:
             await update.message.reply_text("📊 <b>Активных интерактивов нет</b>", parse_mode="HTML")
             return
         
         message = "📊 <b>Статистика интерактивов:</b>\n\n"
-        total_rewards = 0
         
-        for interactive in interactives:
-            # Здесь можно добавить подсчет количества участников
-            # пока просто показываем базовую информацию
+        for interactive_stats in stats["interactives"]:
             message += (
-                f"📝 <b>{interactive['title']}</b>\n"
-                f"⭐ Награда: {interactive['reward_stars']} звезд\n"
-                f"🆔 ID: {interactive['id']}\n\n"
+                f"📝 <b>{interactive_stats['title']}</b>\n"
+                f"❓ Вопросов: {interactive_stats['total_answers']}\n"
+                f"⭐ Награда за ответ: {interactive_stats['reward_per_answer']} звезд\n"
+                f"💰 Максимальная награда: {interactive_stats['max_reward']} звезд\n"
+                f"👥 Участников: {interactive_stats['claims_count']}\n"
+                f"🎁 Выдано наград: {interactive_stats['total_rewarded']} звезд\n"
+                f"🆔 ID: {interactive_stats['id']}\n\n"
             )
-            total_rewards += interactive['reward_stars']
         
-        message += f"📈 <b>Всего активных интерактивов:</b> {len(interactives)}\n"
-        message += f"💰 <b>Общая награда:</b> {total_rewards} звезд"
+        message += f"📈 <b>Общая статистика:</b>\n"
+        message += f"🎯 Активных интерактивов: {stats['total_interactives']}\n"
+        message += f"👥 Всего участников: {stats['total_claims']}\n"
+        message += f"💰 Всего выдано наград: {stats['total_rewards_given']} звезд"
         
         await update.message.reply_text(message, parse_mode="HTML")
         
