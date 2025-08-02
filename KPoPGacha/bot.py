@@ -382,24 +382,23 @@ async def pull10_impl(user, pb_user, update):
     level = pb_user.get("level", 1)
     exp = pb_user.get("exp", 0)
     group, album = pb.get_active_banner(pb_user)
-    # Проверка: если баннер выбран, но в нём <10 карт — ошибка
-    if group and album:
-        all_cards = pb.get_cards_by_group_album(group, album)
-        if len(all_cards) < 10:
-            await target.reply_text("В выбранном баннере недостаточно карточек для 10-кратного открытия!", parse_mode="HTML")
-            return
     results = []
     media = []
     captions = []
     total_exp = 0
     rolls = 0
-    max_rolls = 100
+    max_rolls = 200  # Увеличиваем лимит попыток
     banner_text = f"<b>Баннер:</b> <i>{group} — {album}</i>\n" if group and album else ""
+    
+    # Кэшируем карты баннера один раз
+    banner_cards = None
+    if group and album:
+        banner_cards = pb.get_cards_by_group_album(group, album)
+    
     while len(results) < 10 and rolls < max_rolls:
         rarity = choose_rarity(pity_legendary, pity_void)
-        if group and album:
-            all_cards = pb.get_cards_by_group_album(group, album)
-            cards_of_rarity = [c for c in all_cards if c.get("rarity") == rarity]
+        if group and album and banner_cards:
+            cards_of_rarity = [c for c in banner_cards if c.get("rarity") == rarity]
             if not cards_of_rarity:
                 rolls += 1
                 continue  # не засчитываем roll, не списываем звёзды
@@ -444,7 +443,7 @@ async def pull10_impl(user, pb_user, update):
         results.append(card)
         rolls += 1
     if len(results) < 10:
-        await target.reply_text("В выбранном баннере недостаточно подходящих карточек для 10-кратного открытия!", parse_mode="HTML")
+        await target.reply_text(f"Не удалось получить 10 карточек после {max_rolls} попыток. Возможно, в баннере недостаточно карточек разных редкостей.", parse_mode="HTML")
         return
     pb.update_user_stars_and_pity(user_id, stars - PULL10_COST, pity_legendary, pity_void)
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
