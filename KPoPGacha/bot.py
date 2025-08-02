@@ -269,7 +269,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Добавляем админ-команды только для админов
     if user_id in ADMIN_IDS:
-        help_text += "\n\n<b>Админ-команды:</b>\n<b>/admin</b> — админ-панель\n<b>/admin_stars [количество]</b> — добавить всем звезд\n<b>/admin_stars_user [ID] [количество]</b> — добавить звезд пользователю\n<b>/admin_give_cards [ID] [количество]</b> — выдать карточки пользователю"
+                          help_text += "\n\n<b>Админ-команды:</b>\n<b>/admin</b> — админ-панель\n<b>/admin_stars [количество] [причина]</b> — добавить всем звезд\n<b>/admin_stars_user [ID] [количество]</b> — добавить звезд пользователю\n<b>/admin_give_cards [ID] [количество]</b> — выдать карточки пользователю"
     
     if target:
         await target.reply_text(help_text, parse_mode="HTML")

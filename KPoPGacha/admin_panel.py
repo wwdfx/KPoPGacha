@@ -110,9 +110,10 @@ async def add_stars_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Очищаем контекст
             context.user_data.pop('target_user_id', None)
         else:
-            # Добавляем звезды всем пользователям
-            await add_stars_to_all(amount)
-            await update.message.reply_text(f"✅ Добавлено {amount} звезд всем пользователям!")
+            # Добавляем звезды всем пользователям с уведомлением
+            reason = "Бонус от администрации"
+            await add_stars_to_all_with_notification(amount, reason, update)
+            await update.message.reply_text(f"✅ Добавлено {amount} звезд всем пользователям!\n\nПричина: {reason}")
         
         return ConversationHandler.END
         
@@ -201,6 +202,41 @@ async def add_stars_to_all(amount):
             user.get("pity_legendary", 0), 
             user.get("pity_void", 0)
         )
+
+async def add_stars_to_all_with_notification(amount, reason, update):
+    """Добавить звезды всем пользователям и отправить уведомление"""
+    users = pb.get_all_users()
+    success_count = 0
+    failed_count = 0
+    
+    # Сначала добавляем звезды всем
+    for user in users:
+        current_stars = user.get("stars", 0)
+        new_stars = current_stars + amount
+        pb.update_user_stars_and_pity(
+            user["id"], 
+            new_stars, 
+            user.get("pity_legendary", 0), 
+            user.get("pity_void", 0)
+        )
+    
+    # Затем отправляем уведомления
+    for user in users:
+        telegram_id = user.get("telegram_id")
+        if telegram_id:
+            try:
+                message_text = f"⭐ <b>Бонус!</b>\n\nВам добавлено <b>{amount} звезд</b>\n\nПричина: {reason}"
+                await update.get_bot().send_message(
+                    chat_id=telegram_id,
+                    text=message_text,
+                    parse_mode="HTML"
+                )
+                success_count += 1
+            except Exception as e:
+                print(f"DEBUG: [add_stars_to_all_with_notification] Ошибка отправки сообщения пользователю {telegram_id}: {e}")
+                failed_count += 1
+    
+    print(f"DEBUG: [add_stars_to_all_with_notification] Успешно отправлено: {success_count}, Ошибок: {failed_count}")
 
 async def add_stars_to_user(user_id, amount):
     """Добавить звезды конкретному пользователю"""
@@ -309,7 +345,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     if data == "admin_add_stars_all":
         print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_add_stars_all")
         await query.edit_message_text(
-            "⭐ <b>Добавить всем звезд</b>\n\nВведите количество звезд:\n\n<i>Используйте команду /admin_stars [количество]</i>",
+            "⭐ <b>Добавить всем звезд</b>\n\nВведите количество звезд и причину:\n\n<i>Используйте команду /admin_stars [количество] [причина]</i>\n\nПример: /admin_stars 500 Праздничный бонус!",
             parse_mode="HTML"
         )
         return
@@ -386,8 +422,8 @@ async def admin_stars_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("⛔ Доступ запрещен.")
         return
     
-    if not context.args or len(context.args) != 1:
-        await update.message.reply_text("❌ Использование: /admin_stars [количество]")
+    if not context.args or len(context.args) < 1:
+        await update.message.reply_text("❌ Использование: /admin_stars [количество] [причина]")
         return
     
     try:
@@ -396,8 +432,11 @@ async def admin_stars_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("❌ Количество должно быть положительным!")
             return
         
-        await add_stars_to_all(amount)
-        await update.message.reply_text(f"✅ Добавлено {amount} звезд всем пользователям!")
+        # Получаем причину из оставшихся аргументов
+        reason = " ".join(context.args[1:]) if len(context.args) > 1 else "Бонус от администрации"
+        
+        await add_stars_to_all_with_notification(amount, reason, update)
+        await update.message.reply_text(f"✅ Добавлено {amount} звезд всем пользователям!\n\nПричина: {reason}")
         
     except ValueError:
         await update.message.reply_text("❌ Введите корректное число!")
