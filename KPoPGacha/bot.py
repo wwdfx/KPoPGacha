@@ -2,6 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMe
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 from pb_client import PBClient
 from config import TELEGRAM_BOT_TOKEN, ADMIN_IDS, TELEGRAM_AUCTION_CHANNEL_ID
+from admin_panel import get_admin_conversation_handler
 import random
 import os
 import tempfile
@@ -250,22 +251,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_reply_target(update)
+    user_id = update.effective_user.id
+    help_text = (
+        "<b>Доступные команды:</b>\n"
+        "<b>/menu</b> — главное меню\n"
+        "<b>/profile</b> — ваш профиль\n"
+        "<b>/pull</b> — гача (1 попытка)\n"
+        "<b>/pull10</b> — гача (10 попыток)\n"
+        "<b>/inventory</b> — коллекция\n"
+        "<b>/daily</b> — ежедневка\n"
+        "<b>/history</b> — история попыток\n"
+        "<b>/pity</b> — pity-счётчики\n"
+        "<b>/leaderboard</b> — топ игроков\n"
+        "<b>/settings</b> — настройки\n"
+        "<b>/help</b> — помощь"
+    )
+    
+    # Добавляем админ-команды только для админов
+    if user_id in ADMIN_IDS:
+        help_text += "\n\n<b>Админ-команды:</b>\n<b>/admin</b> — админ-панель"
+    
     if target:
-        await target.reply_text(
-            "<b>Доступные команды:</b>\n"
-            "<b>/menu</b> — главное меню\n"
-            "<b>/profile</b> — ваш профиль\n"
-            "<b>/pull</b> — гача (1 попытка)\n"
-            "<b>/pull10</b> — гача (10 попыток)\n"
-            "<b>/inventory</b> — коллекция\n"
-            "<b>/daily</b> — ежедневка\n"
-            "<b>/history</b> — история попыток\n"
-            "<b>/pity</b> — pity-счётчики\n"
-            "<b>/leaderboard</b> — топ игроков\n"
-            "<b>/settings</b> — настройки\n"
-            "<b>/help</b> — помощь",
-            parse_mode="HTML"
-        )
+        await target.reply_text(help_text, parse_mode="HTML")
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prefer_edit = hasattr(update, 'callback_query') and update.callback_query is not None
@@ -1955,6 +1962,11 @@ def main():
     app.add_handler(auction_conv)
     app.add_handler(promo_conv)
     app.add_handler(addpromo_conv)
+    
+    # Добавляем админ-панель
+    admin_conv = get_admin_conversation_handler()
+    app.add_handler(admin_conv)
+    
     app.run_polling()
 
 if __name__ == "__main__":
