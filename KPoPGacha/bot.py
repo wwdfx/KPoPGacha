@@ -37,14 +37,12 @@ def get_cached_image_path(image_url):
     
     # Если файла нет в кэше, скачиваем его
     try:
-        print(f"📥 Скачиваю изображение: {image_url}")
         response = requests.get(image_url, timeout=30)
         response.raise_for_status()
         
         with open(cache_path, 'wb') as f:
             f.write(response.content)
         
-        print(f"✓ Сохранено в кэш: {cache_path}")
         return cache_path
     except Exception as e:
         print(f"✗ Ошибка скачивания изображения {image_url}: {e}")
@@ -503,8 +501,11 @@ async def pull10_impl(user, pb_user, update):
     pb.update_user_stars_and_pity(user_id, stars - PULL10_COST, pity_legendary, pity_void)
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
     if media:
+        # Отправляем только один раз - либо медиа-группой, либо по одной
+        sent_successfully = False
         try:
             await target.reply_media_group(media)
+            sent_successfully = True
         except Exception as e:
             print(f"DEBUG: Ошибка отправки медиа-группы: {e}")
             # Отправляем по одной карте с задержкой
