@@ -1960,7 +1960,7 @@ def main():
     app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
     
-    # Добавляем обработчики админ-callback'ов ПЕРЕД общим menu_callback
+    # Добавляем админ-панель ПЕРЕД обработчиками админ-callback'ов
     from admin_panel import (
         handle_admin_callback, admin_stars_command, admin_stars_user_command, admin_give_cards_command,
         admin_ban_command, admin_unban_command, admin_reset_user_command, admin_set_level_command, admin_set_exp_command,
@@ -1971,8 +1971,15 @@ def main():
         admin_backup_command, admin_maintenance_command, admin_announce_command, admin_test_notification_command,
         admin_event_start_command, admin_event_end_command, admin_give_event_rewards_command, admin_set_event_banner_command,
         admin_warn_command, admin_mute_command, admin_unmute_command, admin_user_history_command,
-        admin_daily_report_command, admin_weekly_report_command, admin_revenue_stats_command, admin_popular_cards_command
+        admin_daily_report_command, admin_weekly_report_command, admin_revenue_stats_command, admin_popular_cards_command,
+        get_admin_conversation_handler
     )
+    
+    # Добавляем админ-панель (ConversationHandler) ПЕРЕД общими админ-callback'ами
+    admin_conv = get_admin_conversation_handler()
+    app.add_handler(admin_conv)
+    
+    # Добавляем обработчики прямых админ-действий ПОСЛЕ ConversationHandler
     app.add_handler(CallbackQueryHandler(handle_admin_callback, pattern="^admin_"))
     
     # Добавляем админ-команды
@@ -2016,9 +2023,7 @@ def main():
     app.add_handler(CommandHandler("admin_revenue_stats", admin_revenue_stats_command))
     app.add_handler(CommandHandler("admin_popular_cards", admin_popular_cards_command))
     
-    # Добавляем админ-панель
-    admin_conv = get_admin_conversation_handler()
-    app.add_handler(admin_conv)
+
     
     # Общий обработчик callback'ов должен быть ПОСЛЕ специфичных
     app.add_handler(CallbackQueryHandler(menu_callback))

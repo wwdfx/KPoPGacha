@@ -395,7 +395,7 @@ def get_admin_conversation_handler():
 
 # Функция для обработки админ-callback'ов вне ConversationHandler
 async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка админ-callback'ов"""
+    """Обработка админ-callback'ов для прямых действий"""
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -412,29 +412,35 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("⛔ Доступ запрещен.")
         return
     
-    # Обрабатываем админ-команды
+    # Обрабатываем только прямые админ-действия, не меню навигацию
     if data == "admin_add_stars_all":
         print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_add_stars_all")
         await query.edit_message_text(
-            "⭐ <b>Добавить всем звезд</b>\n\nВведите количество звезд и причину:\n\n<i>Используйте команду /admin_stars [количество] [причина]</i>\n\nПример: /admin_stars 500 Праздничный бонус!",
+            "⭐ <b>Добавить всем звезд</b>\n\nИспользуйте команду:\n<code>/admin_stars [количество] [причина]</code>\n\nПример:\n<code>/admin_stars 500 Праздничный бонус</code>",
             parse_mode="HTML"
         )
+        keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]]
+        await query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
         return
     
     elif data == "admin_add_stars_user":
         print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_add_stars_user")
         await query.edit_message_text(
-            "👤 <b>Добавить звезд пользователю</b>\n\nВведите Telegram ID пользователя:\n\n<i>Используйте команду /admin_stars_user [ID] [количество]</i>",
+            "👤 <b>Добавить звезд пользователю</b>\n\nИспользуйте команду:\n<code>/admin_stars_user [ID] [количество]</code>\n\nПример:\n<code>/admin_stars_user 123456789 100</code>",
             parse_mode="HTML"
         )
+        keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]]
+        await query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
         return
     
     elif data == "admin_give_cards":
         print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_give_cards")
         await query.edit_message_text(
-            "🎴 <b>Выдать карточки пользователю</b>\n\nВведите Telegram ID пользователя:\n\n<i>Используйте команду /admin_give_cards [ID] [количество]</i>",
+            "🎴 <b>Выдать карточки пользователю</b>\n\nИспользуйте команду:\n<code>/admin_give_cards [ID] [количество]</code>\n\nПример:\n<code>/admin_give_cards 123456789 10</code>",
             parse_mode="HTML"
         )
+        keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]]
+        await query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
         return
     
     elif data == "admin_stats":
@@ -444,7 +450,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             f"📊 <b>Статистика</b>\n\n{stats}",
             parse_mode="HTML"
         )
-        keyboard = [[InlineKeyboardButton("⬅️ Назад", callback_data="admin_back")]]
+        keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]]
         await query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
         return
     
@@ -455,7 +461,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             "🔄 <b>Pity сброшен для всех пользователей</b>",
             parse_mode="HTML"
         )
-        keyboard = [[InlineKeyboardButton("⬅️ Назад", callback_data="admin_back")]]
+        keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]]
         await query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
         return
     
@@ -464,30 +470,9 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("❌ Операция отменена.")
         return
     
-    elif data == "admin_back":
-        print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_back")
-        # Возвращаемся к главному меню админ-панели
-        keyboard = [
-            [InlineKeyboardButton("👥 Управление пользователями", callback_data="admin_users_menu")],
-            [InlineKeyboardButton("🎴 Управление карточками", callback_data="admin_cards_menu")],
-            [InlineKeyboardButton("💰 Экономика", callback_data="admin_economy_menu")],
-            [InlineKeyboardButton("🎮 Игровые механики", callback_data="admin_game_menu")],
-            [InlineKeyboardButton("📊 Аналитика и мониторинг", callback_data="admin_analytics_menu")],
-            [InlineKeyboardButton("⚙️ Системные команды", callback_data="admin_system_menu")],
-            [InlineKeyboardButton("🎉 Праздничные функции", callback_data="admin_events_menu")],
-            [InlineKeyboardButton("🛡️ Модерация", callback_data="admin_moderation_menu")],
-            [InlineKeyboardButton("📈 Статистика и отчеты", callback_data="admin_reports_menu")],
-            [InlineKeyboardButton("❌ Отмена", callback_data="admin_cancel")]
-        ]
-        
-        await query.edit_message_text(
-            "🔧 <b>Админ-панель</b>\n\nВыберите категорию:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-        return ADMIN_MENU
-    
-    print(f"DEBUG: [handle_admin_callback] Неизвестный callback: {data}") 
+    # Если это не прямой админ-действие, пропускаем для обработки ConversationHandler
+    print(f"DEBUG: [handle_admin_callback] Пропускаю callback для ConversationHandler: {data}")
+    return False 
 
 # Команды для админ-функций
 async def admin_ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
