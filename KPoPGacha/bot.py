@@ -394,15 +394,24 @@ async def pull10_impl(user, pb_user, update):
     banner_cards = None
     if group and album:
         banner_cards = pb.get_cards_by_group_album(group, album)
+        print(f"DEBUG: В баннере {group} — {album} найдено {len(banner_cards)} карт")
+        # Анализируем распределение по редкостям
+        rarity_dist = {}
+        for card in banner_cards:
+            rarity = card.get("rarity", 1)
+            rarity_dist[rarity] = rarity_dist.get(rarity, 0) + 1
+        print(f"DEBUG: Распределение по редкостям: {rarity_dist}")
     
     while len(results) < 10 and rolls < max_rolls:
         rarity = choose_rarity(pity_legendary, pity_void)
         if group and album and banner_cards:
             cards_of_rarity = [c for c in banner_cards if c.get("rarity") == rarity]
             if not cards_of_rarity:
-                rolls += 1
-                continue  # не засчитываем roll, не списываем звёзды
-            card = random.choice(cards_of_rarity)
+                # Если нет карт нужной редкости, берем любую доступную
+                print(f"DEBUG: Нет карт редкости {rarity}★ в баннере, берем любую доступную")
+                card = random.choice(banner_cards)
+            else:
+                card = random.choice(cards_of_rarity)
         else:
             card = pb.get_random_card_by_rarity(rarity)
             if not card:
