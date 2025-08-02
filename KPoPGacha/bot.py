@@ -394,13 +394,6 @@ async def pull10_impl(user, pb_user, update):
     banner_cards = None
     if group and album:
         banner_cards = pb.get_cards_by_group_album(group, album)
-        print(f"DEBUG: В баннере {group} — {album} найдено {len(banner_cards)} карт")
-        # Анализируем распределение по редкостям
-        rarity_dist = {}
-        for card in banner_cards:
-            rarity = card.get("rarity", 1)
-            rarity_dist[rarity] = rarity_dist.get(rarity, 0) + 1
-        print(f"DEBUG: Распределение по редкостям: {rarity_dist}")
     
     while len(results) < 10 and rolls < max_rolls:
         rarity = choose_rarity(pity_legendary, pity_void)
@@ -408,7 +401,6 @@ async def pull10_impl(user, pb_user, update):
             cards_of_rarity = [c for c in banner_cards if c.get("rarity") == rarity]
             if not cards_of_rarity:
                 # Если нет карт нужной редкости, берем любую доступную
-                print(f"DEBUG: Нет карт редкости {rarity}★ в баннере, берем любую доступную")
                 card = random.choice(banner_cards)
             else:
                 card = random.choice(cards_of_rarity)
@@ -459,9 +451,18 @@ async def pull10_impl(user, pb_user, update):
     if media:
         try:
             await target.reply_media_group(media)
-        except Exception:
-            for m in media:
-                await target.reply_photo(m.media, caption=m.caption, parse_mode="HTML")
+        except Exception as e:
+            print(f"DEBUG: Ошибка отправки медиа-группы: {e}")
+            # Отправляем по одной карте с задержкой
+            for i, m in enumerate(media):
+                try:
+                    await target.reply_photo(m.media, caption=m.caption, parse_mode="HTML")
+                    if i < len(media) - 1:  # Не делаем задержку после последней карты
+                        await asyncio.sleep(0.5)  # Задержка между отправками
+                except Exception as e:
+                    print(f"DEBUG: Ошибка отправки карты {i+1}: {e}")
+                    # Если не удалось отправить фото, отправляем текстом
+                    await target.reply_text(m.caption, parse_mode="HTML")
         for path in captions:
             if path:
                 try:
