@@ -13,8 +13,40 @@ import httpx
 import asyncio
 from telegram.constants import ParseMode, ChatType
 import uuid
+import hashlib
 
 pb = PBClient()
+
+# Создаем папку для кэша изображений
+CACHE_DIR = "image_cache"
+if not os.path.exists(CACHE_DIR):
+    os.makedirs(CACHE_DIR)
+
+def get_cached_image_path(image_url):
+    """Получает путь к кэшированному изображению или скачивает его"""
+    if not image_url:
+        return None
+    
+    # Создаем хеш URL для имени файла
+    url_hash = hashlib.md5(image_url.encode()).hexdigest()
+    cache_path = os.path.join(CACHE_DIR, f"{url_hash}.jpg")
+    
+    # Если файл уже существует, возвращаем его
+    if os.path.exists(cache_path):
+        return cache_path
+    
+    # Скачиваем изображение
+    try:
+        response = requests.get(image_url, timeout=10)
+        response.raise_for_status()
+        
+        with open(cache_path, 'wb') as f:
+            f.write(response.content)
+        
+        return cache_path
+    except Exception as e:
+        print(f"Ошибка скачивания изображения {image_url}: {e}")
+        return None
 
 # Шансы выпадения по редкости (сумма = 100)
 RARITY_CHANCES = [
@@ -271,13 +303,14 @@ def apply_overlay(card_image_url, rarity):
     overlay_path = os.path.join(os.path.dirname(__file__), "overlays", f"overlay_{rarity}.png")
     if not os.path.exists(overlay_path):
         return None  # Нет оверлея для этой редкости
-    # Скачиваем картинку карточки
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_card:
-        resp = requests.get(card_image_url)
-        temp_card.write(resp.content)
-        temp_card_path = temp_card.name
+    
+    # Получаем кэшированное изображение
+    cached_image_path = get_cached_image_path(card_image_url)
+    if not cached_image_path:
+        return None
+    
     # Открываем изображения
-    card_img = Image.open(temp_card_path).convert("RGBA")
+    card_img = Image.open(cached_image_path).convert("RGBA")
     overlay_img = Image.open(overlay_path).convert("RGBA")
     # Масштабируем оверлей под размер карточки
     overlay_img = overlay_img.resize(card_img.size, Image.Resampling.LANCZOS)
@@ -286,7 +319,6 @@ def apply_overlay(card_image_url, rarity):
     # Сохраняем результат
     out_path = tempfile.mktemp(suffix=".png")
     combined.save(out_path, format="PNG")
-    os.unlink(temp_card_path)
     return out_path
 
 async def pull_once(user, pb_user, update, pull_type="single"):
@@ -352,11 +384,17 @@ async def pull_once(user, pb_user, update, pull_type="single"):
         rank = pb.get_rank(updated_user.get('level', 1))
         text += f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>"
     if card.get("image_url"):
+        # Получаем кэшированное изображение
+        cached_image_path = get_cached_image_path(card["image_url"])
         overlayed_path = apply_overlay(card["image_url"], card["rarity"])
+        
         if overlayed_path:
             with open(overlayed_path, "rb") as img_file:
                 await target.reply_photo(img_file, caption=text, parse_mode="HTML")
             os.unlink(overlayed_path)
+        elif cached_image_path:
+            with open(cached_image_path, "rb") as img_file:
+                await target.reply_photo(img_file, caption=text, parse_mode="HTML")
         else:
             await target.reply_photo(card["image_url"], caption=text, parse_mode="HTML")
     else:
@@ -432,10 +470,16 @@ async def pull10_impl(user, pb_user, update):
         )
         if is_first:
             caption += " <i>(первое получение)</i>"
+        # Получаем кэшированное изображение
+        cached_image_path = get_cached_image_path(card.get("image_url"))
         overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
+        
         if overlayed_path:
             media.append(InputMediaPhoto(open(overlayed_path, "rb"), caption=caption, parse_mode="HTML"))
             captions.append(overlayed_path)
+        elif cached_image_path:
+            media.append(InputMediaPhoto(open(cached_image_path, "rb"), caption=caption, parse_mode="HTML"))
+            captions.append(None)
         elif card.get("image_url"):
             media.append(InputMediaPhoto(card["image_url"], caption=caption, parse_mode="HTML"))
             captions.append(None)
