@@ -1959,14 +1959,8 @@ def main():
     app.add_handler(CallbackQueryHandler(showcard_callback, pattern="^showcard_"))
     app.add_handler(CallbackQueryHandler(buyauction_callback, pattern="^buyauction_"))
     app.add_handler(CallbackQueryHandler(showcard_refresh_callback, pattern="^showcard_refresh_"))
-    app.add_handler(CallbackQueryHandler(menu_callback))
-    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
-    app.add_handler(addcard_conv)
-    app.add_handler(auction_conv)
-    app.add_handler(promo_conv)
-    app.add_handler(addpromo_conv)
     
-    # Добавляем обработчики админ-callback'ов
+    # Добавляем обработчики админ-callback'ов ПЕРЕД общим menu_callback
     from admin_panel import handle_admin_callback, admin_stars_command, admin_stars_user_command, admin_give_cards_command
     app.add_handler(CallbackQueryHandler(handle_admin_callback, pattern="^admin_"))
     
@@ -1978,6 +1972,14 @@ def main():
     # Добавляем админ-панель
     admin_conv = get_admin_conversation_handler()
     app.add_handler(admin_conv)
+    
+    # Общий обработчик callback'ов должен быть ПОСЛЕ специфичных
+    app.add_handler(CallbackQueryHandler(menu_callback))
+    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, group_message_handler))
+    app.add_handler(addcard_conv)
+    app.add_handler(auction_conv)
+    app.add_handler(promo_conv)
+    app.add_handler(addpromo_conv)
     
     app.run_polling()
 

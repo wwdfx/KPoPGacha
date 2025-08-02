@@ -297,6 +297,8 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     data = query.data
     
+    print(f"DEBUG: [handle_admin_callback] Обрабатываю callback: {data}")
+    
     # Проверяем права доступа
     user_id = query.from_user.id
     if user_id not in ADMIN_IDS:
@@ -305,6 +307,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Обрабатываем админ-команды
     if data == "admin_add_stars_all":
+        print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_add_stars_all")
         await query.edit_message_text(
             "⭐ <b>Добавить всем звезд</b>\n\nВведите количество звезд:\n\n<i>Используйте команду /admin_stars [количество]</i>",
             parse_mode="HTML"
@@ -312,6 +315,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     elif data == "admin_add_stars_user":
+        print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_add_stars_user")
         await query.edit_message_text(
             "👤 <b>Добавить звезд пользователю</b>\n\nВведите Telegram ID пользователя:\n\n<i>Используйте команду /admin_stars_user [ID] [количество]</i>",
             parse_mode="HTML"
@@ -319,6 +323,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     elif data == "admin_give_cards":
+        print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_give_cards")
         await query.edit_message_text(
             "🎴 <b>Выдать карточки пользователю</b>\n\nВведите Telegram ID пользователя:\n\n<i>Используйте команду /admin_give_cards [ID] [количество]</i>",
             parse_mode="HTML"
@@ -326,6 +331,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     elif data == "admin_stats":
+        print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_stats")
         stats = await get_admin_stats()
         await query.edit_message_text(
             f"📊 <b>Статистика</b>\n\n{stats}",
@@ -336,6 +342,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     elif data == "admin_reset_pity":
+        print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_reset_pity")
         await reset_pity_all()
         await query.edit_message_text(
             "🔄 <b>Pity сброшен для всех пользователей</b>",
@@ -346,10 +353,12 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     elif data == "admin_cancel":
+        print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_cancel")
         await query.edit_message_text("❌ Операция отменена.")
         return
     
     elif data == "admin_back":
+        print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_back")
         # Возвращаемся к главному меню админ-панели
         keyboard = [
             [InlineKeyboardButton("⭐ Добавить всем звезд", callback_data="admin_add_stars_all")],
@@ -365,7 +374,9 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        return 
+        return
+    
+    print(f"DEBUG: [handle_admin_callback] Неизвестный callback: {data}") 
 
 # Команды для админ-функций
 async def admin_stars_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
