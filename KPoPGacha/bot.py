@@ -458,7 +458,9 @@ async def pull10_impl(user, pb_user, update):
                 caption = m.caption
                 if "Редкость: " in caption:
                     rarity_line = caption.split("Редкость: ")[1].split(" ")[0]
-                    rarity = int(rarity_line.replace("★", ""))
+                    # Убираем HTML-теги и символы
+                    rarity_clean = rarity_line.replace("★", "").replace("<b>", "").replace("</b>", "")
+                    rarity = int(rarity_clean)
                     rarity_summary[rarity] = rarity_summary.get(rarity, 0) + 1
             
             for rarity in sorted(rarity_summary.keys()):
