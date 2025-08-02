@@ -197,12 +197,19 @@ async def drop100(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Выдано 100 случайных карточек пользователю {pb_user.get('name', target_tg_id)} (ID: {target_tg_id})!")
 
 def get_reply_target(update, prefer_edit=False):
+    print(f"DEBUG: [get_reply_target] prefer_edit: {prefer_edit}")
+    print(f"DEBUG: [get_reply_target] hasattr(update, 'message'): {hasattr(update, 'message')}")
+    print(f"DEBUG: [get_reply_target] hasattr(update, 'callback_query'): {hasattr(update, 'callback_query')}")
     if prefer_edit and hasattr(update, 'callback_query') and update.callback_query and update.callback_query.message:
+        print(f"DEBUG: [get_reply_target] Возвращаю callback_query.message (prefer_edit)")
         return update.callback_query.message
     if hasattr(update, 'message') and update.message:
+        print(f"DEBUG: [get_reply_target] Возвращаю update.message")
         return update.message
     elif hasattr(update, 'callback_query') and update.callback_query and update.callback_query.message:
+        print(f"DEBUG: [get_reply_target] Возвращаю callback_query.message")
         return update.callback_query.message
+    print(f"DEBUG: [get_reply_target] Возвращаю None")
     return None
 
 def back_keyboard():
@@ -296,38 +303,63 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- Гача логика ---
 def choose_rarity(pity_legendary, pity_void):
+    print(f"DEBUG: [choose_rarity] pity_legendary: {pity_legendary}, pity_void: {pity_void}")
     # Pity: 80 - гарант 5*, 165 - гарант 6*
     if pity_void >= 165:
+        print(f"DEBUG: [choose_rarity] Pity void достигнут, возвращаю 6★")
         return 6
     if pity_legendary >= 80:
+        print(f"DEBUG: [choose_rarity] Pity legendary достигнут, возвращаю 5★")
         return 5
-    return random.choices(RARITY_VALUES, weights=RARITY_WEIGHTS, k=1)[0]
+    rarity = random.choices(RARITY_VALUES, weights=RARITY_WEIGHTS, k=1)[0]
+    print(f"DEBUG: [choose_rarity] Случайная редкость: {rarity}★")
+    return rarity
 
 def apply_overlay(card_image_url, rarity):
+    print(f"DEBUG: [apply_overlay] Начинаю применение оверлея для редкости {rarity}")
     if rarity not in (3, 4, 5, 6):
+        print(f"DEBUG: [apply_overlay] Редкость {rarity} не поддерживается для оверлея")
         return None  # Эффект только для 3★ и выше
+    
     overlay_path = os.path.join(os.path.dirname(__file__), "overlays", f"overlay_{rarity}.png")
+    print(f"DEBUG: [apply_overlay] Путь к оверлею: {overlay_path}")
     if not os.path.exists(overlay_path):
+        print(f"DEBUG: [apply_overlay] Файл оверлея не найден")
         return None  # Нет оверлея для этой редкости
     
     # Получаем кэшированное изображение
     cached_image_path = get_cached_image_path(card_image_url)
+    print(f"DEBUG: [apply_overlay] Кэшированный путь: {cached_image_path}")
     if not cached_image_path:
+        print(f"DEBUG: [apply_overlay] Нет кэшированного изображения")
         return None
     
-    # Открываем изображения
-    card_img = Image.open(cached_image_path).convert("RGBA")
-    overlay_img = Image.open(overlay_path).convert("RGBA")
-    # Масштабируем оверлей под размер карточки
-    overlay_img = overlay_img.resize(card_img.size, Image.Resampling.LANCZOS)
-    # Накладываем оверлей
-    combined = Image.alpha_composite(card_img, overlay_img)
-    # Сохраняем результат
-    out_path = tempfile.mktemp(suffix=".png")
-    combined.save(out_path, format="PNG")
-    return out_path
+    try:
+        # Открываем изображения
+        print(f"DEBUG: [apply_overlay] Открываю изображения")
+        card_img = Image.open(cached_image_path).convert("RGBA")
+        overlay_img = Image.open(overlay_path).convert("RGBA")
+        print(f"DEBUG: [apply_overlay] Размер карты: {card_img.size}, размер оверлея: {overlay_img.size}")
+        
+        # Масштабируем оверлей под размер карточки
+        overlay_img = overlay_img.resize(card_img.size, Image.Resampling.LANCZOS)
+        print(f"DEBUG: [apply_overlay] Оверлей масштабирован")
+        
+        # Накладываем оверлей
+        combined = Image.alpha_composite(card_img, overlay_img)
+        print(f"DEBUG: [apply_overlay] Оверлей наложен")
+        
+        # Сохраняем результат
+        out_path = tempfile.mktemp(suffix=".png")
+        combined.save(out_path, format="PNG")
+        print(f"DEBUG: [apply_overlay] Результат сохранен в: {out_path}")
+        return out_path
+    except Exception as e:
+        print(f"DEBUG: [apply_overlay] Ошибка применения оверлея: {e}")
+        return None
 
 async def pull_once(user, pb_user, update, pull_type="single"):
+    print(f"DEBUG: [pull_once] Начинаю pull_once для пользователя {user.id}")
     target = get_reply_target(update)
     pity_legendary = pb_user.get("pity_legendary", 0)
     pity_void = pb_user.get("pity_void", 0)
@@ -335,13 +367,16 @@ async def pull_once(user, pb_user, update, pull_type="single"):
     user_id = pb_user["id"]
     level = pb_user.get("level", 1)
     exp = pb_user.get("exp", 0)
+    print(f"DEBUG: [pull_once] У пользователя {stars} звезд, pity_legendary: {pity_legendary}, pity_void: {pity_void}")
 
     if stars < PULL_COST:
+        print(f"DEBUG: [pull_once] Недостаточно звезд ({stars} < {PULL_COST})")
         if target:
             await target.reply_text("<b>Недостаточно звёзд для попытки!</b>", parse_mode="HTML")
         return
 
     rarity = choose_rarity(pity_legendary, pity_void)
+    print(f"DEBUG: [pull_once] Выбрана редкость: {rarity}★")
     # --- Баннер ---
     group, album = pb.get_active_banner(pb_user)
     if group and album:
@@ -418,12 +453,18 @@ async def pull_once(user, pb_user, update, pull_type="single"):
         print(f"DEBUG: [pull_once] Нет изображения, отправляю текст")
         if target:
             await target.reply_text(text, parse_mode="HTML")
+    
+    print(f"DEBUG: [pull_once] pull_once завершен")
 
 async def pull(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"DEBUG: [pull] Начинаю pull для пользователя {update.effective_user.id}")
     await pull_once(update.effective_user, pb.get_user_by_telegram_id(update.effective_user.id), update, pull_type="single")
+    print(f"DEBUG: [pull] pull завершен")
 
 async def pull10(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"DEBUG: [pull10] Начинаю pull10 для пользователя {update.effective_user.id}")
     await pull10_impl(update.effective_user, pb.get_user_by_telegram_id(update.effective_user.id), update)
+    print(f"DEBUG: [pull10] pull10 завершен")
 
 async def pull10_impl(user, pb_user, update):
     print(f"DEBUG: [pull10_impl] Начинаю pull10 для пользователя {user.id}")
@@ -541,13 +582,45 @@ async def pull10_impl(user, pb_user, update):
         except Exception as e:
             print(f"DEBUG: [pull10_impl] Ошибка отправки медиа-группы: {e}")
             # Если медиа-группа не отправилась, отправляем текстовое резюме
+            print(f"DEBUG: [pull10_impl] Создаю текстовое резюме")
             summary = f"{banner_text}<b>🎉 Получено {len(media)} карточек!</b>\n\n"
             for i, m in enumerate(media, 1):
-                card_name = m.caption.split("<b>")[1].split("</b>")[0] if "<b>" in m.caption else "Неизвестная карта"
-                rarity = m.caption.split("Редкость: <b>")[1].split("★")[0] if "Редкость: <b>" in m.caption else "?"
-                summary += f"{i}. {card_name} ({rarity}★)\n"
+                try:
+                    # Безопасное извлечение имени карты
+                    caption_text = m.caption or ""
+                    if "<b>" in caption_text and "</b>" in caption_text:
+                        card_name = caption_text.split("<b>")[1].split("</b>")[0]
+                    else:
+                        card_name = "Неизвестная карта"
+                    
+                    # Безопасное извлечение редкости
+                    if "Редкость: <b>" in caption_text:
+                        rarity_part = caption_text.split("Редкость: <b>")[1]
+                        if "★" in rarity_part:
+                            rarity = rarity_part.split("★")[0]
+                        else:
+                            rarity = "?"
+                    else:
+                        rarity = "?"
+                    
+                    summary += f"{i}. {card_name} ({rarity}★)\n"
+                except Exception as e:
+                    print(f"DEBUG: [pull10_impl] Ошибка парсинга карты {i}: {e}")
+                    summary += f"{i}. Неизвестная карта (?★)\n"
+            
             print(f"DEBUG: [pull10_impl] Отправляю текстовое резюме")
-            await target.reply_text(summary, parse_mode="HTML")
+            try:
+                await target.reply_text(summary, parse_mode="HTML")
+                print(f"DEBUG: [pull10_impl] Текстовое резюме отправлено успешно")
+            except Exception as e:
+                print(f"DEBUG: [pull10_impl] Ошибка отправки текстового резюме: {e}")
+                # Последняя попытка - отправить без HTML
+                try:
+                    plain_summary = summary.replace("<b>", "").replace("</b>", "").replace("<i>", "").replace("</i>", "")
+                    await target.reply_text(plain_summary)
+                    print(f"DEBUG: [pull10_impl] Отправлено без HTML")
+                except Exception as e2:
+                    print(f"DEBUG: [pull10_impl] Критическая ошибка отправки: {e2}")
         for path in captions:
             if path:
                 try:
@@ -557,6 +630,8 @@ async def pull10_impl(user, pb_user, update):
     if levelup:
         rank = pb.get_rank(updated_user.get('level', 1))
         await target.reply_text(f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>", parse_mode="HTML")
+    
+    print(f"DEBUG: [pull10_impl] pull10_impl завершен")
 
 # --- Новый инвентарь: группировка по группам и альбомам ---
 async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1085,36 +1160,51 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    print(f"[menu_callback] query.data: {query.data}")
+    print(f"DEBUG: [menu_callback] query.data: {query.data}")
+    print(f"DEBUG: [menu_callback] user_id: {query.from_user.id}")
     data = query.data
     if data == "menu":
+        print(f"DEBUG: [menu_callback] Выполняю menu")
         await menu(update, context)
         return
     if data == "profile":
+        print(f"DEBUG: [menu_callback] Выполняю profile")
         await profile(update, context)
     elif data == "inventory":
+        print(f"DEBUG: [menu_callback] Выполняю inventory")
         await inventory(update, context)
     elif data == "pull":
+        print(f"DEBUG: [menu_callback] Выполняю pull")
         await pull(update, context)
     elif data == "pull10":
+        print(f"DEBUG: [menu_callback] Выполняю pull10")
         await pull10(update, context)
     elif data == "daily":
+        print(f"DEBUG: [menu_callback] Выполняю daily")
         await daily(update, context)
     elif data == "history":
+        print(f"DEBUG: [menu_callback] Выполняю history")
         await history(update, context)
     elif data == "pity":
+        print(f"DEBUG: [menu_callback] Выполняю pity")
         await pity(update, context)
     elif data == "leaderboard":
+        print(f"DEBUG: [menu_callback] Выполняю leaderboard")
         await leaderboard(update, context)
     elif data == "settings":
+        print(f"DEBUG: [menu_callback] Выполняю settings")
         await settings(update, context)
     elif data == "auctions":
+        print(f"DEBUG: [menu_callback] Выполняю auctions")
         await auctions(update, context)
     elif data == "achievements":
+        print(f"DEBUG: [menu_callback] Выполняю achievements")
         await achievements(update, context)
     elif data == "banner":
+        print(f"DEBUG: [menu_callback] Выполняю banner")
         await banner_start(update, context)
     else:
+        print(f"DEBUG: [menu_callback] Неизвестная команда: {data}")
         try:
             await query.edit_message_text("Неизвестная команда.")
         except Exception:
