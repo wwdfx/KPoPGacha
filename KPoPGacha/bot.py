@@ -24,18 +24,23 @@ if not os.path.exists(CACHE_DIR):
 
 def get_cached_image_path(image_url):
     """Получает путь к кэшированному изображению или скачивает его"""
+    print(f"DEBUG: [get_cached_image_path] Проверяю URL: {image_url}")
     if not image_url:
+        print(f"DEBUG: [get_cached_image_path] URL пустой")
         return None
     
     # Создаем хеш URL для имени файла
     url_hash = hashlib.md5(image_url.encode()).hexdigest()
     cache_path = os.path.join(CACHE_DIR, f"{url_hash}.jpg")
+    print(f"DEBUG: [get_cached_image_path] Путь кэша: {cache_path}")
     
     # Если файл уже существует, возвращаем его
     if os.path.exists(cache_path):
+        print(f"DEBUG: [get_cached_image_path] Файл найден в кэше")
         return cache_path
     
     # Если файла нет в кэше, скачиваем его
+    print(f"DEBUG: [get_cached_image_path] Файл не найден, скачиваю")
     try:
         response = requests.get(image_url, timeout=30)
         response.raise_for_status()
@@ -43,6 +48,7 @@ def get_cached_image_path(image_url):
         with open(cache_path, 'wb') as f:
             f.write(response.content)
         
+        print(f"DEBUG: [get_cached_image_path] Файл скачан и сохранен")
         return cache_path
     except Exception as e:
         print(f"✗ Ошибка скачивания изображения {image_url}: {e}")
@@ -384,24 +390,32 @@ async def pull_once(user, pb_user, update, pull_type="single"):
         rank = pb.get_rank(updated_user.get('level', 1))
         text += f"\n<b>Поздравляем! Ваш уровень повышен: {updated_user.get('level', 1)} ({rank})</b>"
     if card.get("image_url"):
+        print(f"DEBUG: [pull_once] Обрабатываю изображение для карты: {card['name']}")
         # Получаем кэшированное изображение
         cached_image_path = get_cached_image_path(card["image_url"])
+        print(f"DEBUG: [pull_once] Кэшированный путь: {cached_image_path}")
         
         # Применяем оверлей только если есть изображение
         overlayed_path = None
         if cached_image_path or card.get("image_url"):
+            print(f"DEBUG: [pull_once] Применяю оверлей для редкости {card['rarity']}")
             overlayed_path = apply_overlay(card["image_url"], card["rarity"])
+            print(f"DEBUG: [pull_once] Путь с оверлеем: {overlayed_path}")
         
         if overlayed_path:
+            print(f"DEBUG: [pull_once] Отправляю карту с оверлеем")
             with open(overlayed_path, "rb") as img_file:
                 await target.reply_photo(img_file, caption=text, parse_mode="HTML")
             os.unlink(overlayed_path)
         elif cached_image_path:
+            print(f"DEBUG: [pull_once] Отправляю карту из кэша")
             with open(cached_image_path, "rb") as img_file:
                 await target.reply_photo(img_file, caption=text, parse_mode="HTML")
         else:
+            print(f"DEBUG: [pull_once] Отправляю карту по URL")
             await target.reply_photo(card["image_url"], caption=text, parse_mode="HTML")
     else:
+        print(f"DEBUG: [pull_once] Нет изображения, отправляю текст")
         if target:
             await target.reply_text(text, parse_mode="HTML")
 
@@ -412,9 +426,12 @@ async def pull10(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await pull10_impl(update.effective_user, pb.get_user_by_telegram_id(update.effective_user.id), update)
 
 async def pull10_impl(user, pb_user, update):
+    print(f"DEBUG: [pull10_impl] Начинаю pull10 для пользователя {user.id}")
     target = get_reply_target(update)
     stars = pb_user.get("stars", 0)
+    print(f"DEBUG: [pull10_impl] У пользователя {stars} звезд")
     if stars < PULL10_COST:
+        print(f"DEBUG: [pull10_impl] Недостаточно звезд ({stars} < {PULL10_COST})")
         if target:
             await target.reply_text("<b>Недостаточно звёзд для 10 попыток!</b>", parse_mode="HTML")
         return
@@ -438,17 +455,23 @@ async def pull10_impl(user, pb_user, update):
         banner_cards = pb.get_cards_by_group_album(group, album)
     
     while len(results) < 10 and rolls < max_rolls:
+        print(f"DEBUG: [pull10_impl] Попытка {rolls + 1}, получено карт: {len(results)}")
         rarity = choose_rarity(pity_legendary, pity_void)
+        print(f"DEBUG: [pull10_impl] Выбрана редкость: {rarity}★")
         if group and album and banner_cards:
             cards_of_rarity = [c for c in banner_cards if c.get("rarity") == rarity]
+            print(f"DEBUG: [pull10_impl] Найдено карт редкости {rarity}★: {len(cards_of_rarity)}")
             if not cards_of_rarity:
                 # Если нет карт нужной редкости, берем любую доступную
+                print(f"DEBUG: [pull10_impl] Нет карт редкости {rarity}★, беру любую")
                 card = random.choice(banner_cards)
             else:
                 card = random.choice(cards_of_rarity)
         else:
+            print(f"DEBUG: [pull10_impl] Баннер не выбран, беру случайную карту")
             card = pb.get_random_card_by_rarity(rarity)
             if not card:
+                print(f"DEBUG: [pull10_impl] Не найдена карта редкости {rarity}★")
                 rolls += 1
                 continue
         # Pity-счётчики
@@ -474,24 +497,32 @@ async def pull10_impl(user, pb_user, update):
         )
         if is_first:
             caption += " <i>(первое получение)</i>"
+        print(f"DEBUG: [pull10_impl] Обрабатываю карту: {card['name']} ({card['rarity']}★)")
         # Получаем кэшированное изображение
         cached_image_path = get_cached_image_path(card.get("image_url"))
+        print(f"DEBUG: [pull10_impl] Кэшированный путь: {cached_image_path}")
         
         # Применяем оверлей только если есть изображение
         overlayed_path = None
         if cached_image_path or card.get("image_url"):
+            print(f"DEBUG: [pull10_impl] Применяю оверлей для редкости {card['rarity']}")
             overlayed_path = apply_overlay(card.get("image_url"), card.get("rarity"))
+            print(f"DEBUG: [pull10_impl] Путь с оверлеем: {overlayed_path}")
         
         if overlayed_path:
+            print(f"DEBUG: [pull10_impl] Добавляю карту с оверлеем в медиа")
             media.append(InputMediaPhoto(open(overlayed_path, "rb"), caption=caption, parse_mode="HTML"))
             captions.append(overlayed_path)
         elif cached_image_path:
+            print(f"DEBUG: [pull10_impl] Добавляю карту из кэша в медиа")
             media.append(InputMediaPhoto(open(cached_image_path, "rb"), caption=caption, parse_mode="HTML"))
             captions.append(None)
         elif card.get("image_url"):
+            print(f"DEBUG: [pull10_impl] Добавляю карту по URL в медиа")
             media.append(InputMediaPhoto(card["image_url"], caption=caption, parse_mode="HTML"))
             captions.append(None)
         else:
+            print(f"DEBUG: [pull10_impl] Нет изображения, добавляю в текстовый список")
             results.append(f"{len(results)+1}. {card['name']} — нет изображения")
         results.append(card)
         rolls += 1
@@ -501,23 +532,22 @@ async def pull10_impl(user, pb_user, update):
     pb.update_user_stars_and_pity(user_id, stars - PULL10_COST, pity_legendary, pity_void)
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
     if media:
-        # Отправляем только один раз - либо медиа-группой, либо по одной
-        sent_successfully = False
+        print(f"DEBUG: [pull10_impl] Начинаю отправку {len(media)} карточек")
+        # Отправляем только медиа-группой, без fallback
         try:
+            print(f"DEBUG: [pull10_impl] Пытаюсь отправить медиа-группу")
             await target.reply_media_group(media)
-            sent_successfully = True
+            print(f"DEBUG: [pull10_impl] Медиа-группа отправлена успешно")
         except Exception as e:
-            print(f"DEBUG: Ошибка отправки медиа-группы: {e}")
-            # Отправляем по одной карте с задержкой
-            for i, m in enumerate(media):
-                try:
-                    await target.reply_photo(m.media, caption=m.caption, parse_mode="HTML")
-                    if i < len(media) - 1:  # Не делаем задержку после последней карты
-                        await asyncio.sleep(1.5)  # Увеличиваем задержку между отправками
-                except Exception as e:
-                    print(f"DEBUG: Ошибка отправки карты {i+1}: {e}")
-                    # Если не удалось отправить фото, отправляем текстом
-                    await target.reply_text(m.caption, parse_mode="HTML")
+            print(f"DEBUG: [pull10_impl] Ошибка отправки медиа-группы: {e}")
+            # Если медиа-группа не отправилась, отправляем текстовое резюме
+            summary = f"{banner_text}<b>🎉 Получено {len(media)} карточек!</b>\n\n"
+            for i, m in enumerate(media, 1):
+                card_name = m.caption.split("<b>")[1].split("</b>")[0] if "<b>" in m.caption else "Неизвестная карта"
+                rarity = m.caption.split("Редкость: <b>")[1].split("★")[0] if "Редкость: <b>" in m.caption else "?"
+                summary += f"{i}. {card_name} ({rarity}★)\n"
+            print(f"DEBUG: [pull10_impl] Отправляю текстовое резюме")
+            await target.reply_text(summary, parse_mode="HTML")
         for path in captions:
             if path:
                 try:
