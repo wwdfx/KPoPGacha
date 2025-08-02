@@ -7,7 +7,8 @@ from pb_client import PBClient
 pb = PBClient()
 
 # Состояния для ConversationHandler
-ADMIN_MENU, ADD_STARS_MENU, ADD_STARS_AMOUNT, ADD_STARS_USER, GIVE_CARDS_MENU, GIVE_CARDS_USER, GIVE_CARDS_AMOUNT = range(7)
+ADMIN_MENU = 0
+ADD_STARS_MENU, ADD_STARS_AMOUNT, ADD_STARS_USER, GIVE_CARDS_MENU, GIVE_CARDS_USER, GIVE_CARDS_AMOUNT = range(1, 7)
 
 async def admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Главное меню админ-панели"""
@@ -21,16 +22,20 @@ async def admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
     
     keyboard = [
-        [InlineKeyboardButton("⭐ Добавить всем звезд", callback_data="admin_add_stars_all")],
-        [InlineKeyboardButton("👤 Добавить звезд пользователю", callback_data="admin_add_stars_user")],
-        [InlineKeyboardButton("🎴 Выдать карточки пользователю", callback_data="admin_give_cards")],
-        [InlineKeyboardButton("📊 Статистика", callback_data="admin_stats")],
-        [InlineKeyboardButton("🔄 Сбросить pity всем", callback_data="admin_reset_pity")],
+        [InlineKeyboardButton("👥 Управление пользователями", callback_data="admin_users_menu")],
+        [InlineKeyboardButton("🎴 Управление карточками", callback_data="admin_cards_menu")],
+        [InlineKeyboardButton("💰 Экономика", callback_data="admin_economy_menu")],
+        [InlineKeyboardButton("🎮 Игровые механики", callback_data="admin_game_menu")],
+        [InlineKeyboardButton("📊 Аналитика и мониторинг", callback_data="admin_analytics_menu")],
+        [InlineKeyboardButton("⚙️ Системные команды", callback_data="admin_system_menu")],
+        [InlineKeyboardButton("🎉 Праздничные функции", callback_data="admin_events_menu")],
+        [InlineKeyboardButton("🛡️ Модерация", callback_data="admin_moderation_menu")],
+        [InlineKeyboardButton("📈 Статистика и отчеты", callback_data="admin_reports_menu")],
         [InlineKeyboardButton("❌ Отмена", callback_data="admin_cancel")]
     ]
     
     await update.message.reply_text(
-        "🔧 <b>Админ-панель</b>\n\nВыберите действие:",
+        "🔧 <b>Админ-панель</b>\n\nВыберите категорию:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML"
     )
@@ -41,39 +46,177 @@ async def admin_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
     
-    if query.data == "admin_add_stars_all":
+    if query.data == "admin_users_menu":
+        keyboard = [
+            [InlineKeyboardButton("🚫 Заблокировать пользователя", callback_data="admin_ban_info")],
+            [InlineKeyboardButton("✅ Разблокировать пользователя", callback_data="admin_unban_info")],
+            [InlineKeyboardButton("🔄 Сбросить прогресс пользователя", callback_data="admin_reset_user_info")],
+            [InlineKeyboardButton("📊 Установить уровень", callback_data="admin_set_level_info")],
+            [InlineKeyboardButton("⭐ Установить опыт", callback_data="admin_set_exp_info")],
+            [InlineKeyboardButton("👤 Информация о пользователе", callback_data="admin_user_info_info")],
+            [InlineKeyboardButton("📜 История пользователя", callback_data="admin_user_history_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
         await query.edit_message_text(
-            "⭐ <b>Добавить всем звезд</b>\n\nВведите количество звезд:",
+            "👥 <b>Управление пользователями</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        return ADD_STARS_AMOUNT
+        return ADMIN_MENU
     
-    elif query.data == "admin_add_stars_user":
+    elif query.data == "admin_cards_menu":
+        keyboard = [
+            [InlineKeyboardButton("➕ Добавить карточку пользователю", callback_data="admin_add_card_info")],
+            [InlineKeyboardButton("➖ Удалить карточку у пользователя", callback_data="admin_remove_card_info")],
+            [InlineKeyboardButton("🔄 Дублировать карточку", callback_data="admin_duplicate_card_info")],
+            [InlineKeyboardButton("🎴 Выдать случайные карточки", callback_data="admin_give_cards")],
+            [InlineKeyboardButton("📊 Статистика карточки", callback_data="admin_card_stats_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
         await query.edit_message_text(
-            "👤 <b>Добавить звезд пользователю</b>\n\nВведите Telegram ID пользователя:",
+            "🎴 <b>Управление карточками</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        return ADD_STARS_USER
+        return ADMIN_MENU
     
-    elif query.data == "admin_give_cards":
+    elif query.data == "admin_economy_menu":
+        keyboard = [
+            [InlineKeyboardButton("⭐ Добавить всем звезд", callback_data="admin_add_stars_all")],
+            [InlineKeyboardButton("👤 Добавить звезд пользователю", callback_data="admin_add_stars_user")],
+            [InlineKeyboardButton("💰 Установить звезды пользователю", callback_data="admin_set_stars_info")],
+            [InlineKeyboardButton("📈 Умножить звезды у всех", callback_data="admin_multiply_stars_info")],
+            [InlineKeyboardButton("🔄 Сбросить ежедневные бонусы", callback_data="admin_daily_reset_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
         await query.edit_message_text(
-            "🎴 <b>Выдать карточки пользователю</b>\n\nВведите Telegram ID пользователя:",
+            "💰 <b>Экономика</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        return GIVE_CARDS_USER
+        return ADMIN_MENU
     
-    elif query.data == "admin_stats":
-        stats = await get_admin_stats()
+    elif query.data == "admin_game_menu":
+        keyboard = [
+            [InlineKeyboardButton("🎯 Установить баннер пользователю", callback_data="admin_set_banner_info")],
+            [InlineKeyboardButton("🔄 Сбросить баннеры у всех", callback_data="admin_reset_banners_info")],
+            [InlineKeyboardButton("🏆 Выдать достижение", callback_data="admin_give_achievement_info")],
+            [InlineKeyboardButton("🔄 Сбросить достижения", callback_data="admin_reset_achievements_info")],
+            [InlineKeyboardButton("🎰 Установить pity", callback_data="admin_set_pity_info")],
+            [InlineKeyboardButton("⭐ Выдать опыт пользователю", callback_data="admin_give_exp_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
         await query.edit_message_text(
-            f"📊 <b>Статистика</b>\n\n{stats}",
+            "🎮 <b>Игровые механики</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return ADMIN_MENU
+    
+    elif query.data == "admin_analytics_menu":
+        keyboard = [
+            [InlineKeyboardButton("👥 Топ пользователей", callback_data="admin_top_users_info")],
+            [InlineKeyboardButton("📊 Статистика карточки", callback_data="admin_card_stats_info")],
+            [InlineKeyboardButton("📈 Лог активности", callback_data="admin_activity_log_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            "📊 <b>Аналитика и мониторинг</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return ADMIN_MENU
+    
+    elif query.data == "admin_system_menu":
+        keyboard = [
+            [InlineKeyboardButton("💾 Создать резервную копию", callback_data="admin_backup_info")],
+            [InlineKeyboardButton("🔧 Режим обслуживания", callback_data="admin_maintenance_info")],
+            [InlineKeyboardButton("📢 Отправить объявление", callback_data="admin_announce_info")],
+            [InlineKeyboardButton("🔔 Тест уведомлений", callback_data="admin_test_notification_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            "⚙️ <b>Системные команды</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return ADMIN_MENU
+    
+    elif query.data == "admin_events_menu":
+        keyboard = [
+            [InlineKeyboardButton("🎉 Запустить событие", callback_data="admin_event_start_info")],
+            [InlineKeyboardButton("🔚 Завершить событие", callback_data="admin_event_end_info")],
+            [InlineKeyboardButton("🎁 Выдать награды события", callback_data="admin_give_event_rewards_info")],
+            [InlineKeyboardButton("🎴 Установить баннер события", callback_data="admin_set_event_banner_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            "🎉 <b>Праздничные функции</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return ADMIN_MENU
+    
+    elif query.data == "admin_moderation_menu":
+        keyboard = [
+            [InlineKeyboardButton("⚠️ Предупреждение", callback_data="admin_warn_info")],
+            [InlineKeyboardButton("🔇 Замутить пользователя", callback_data="admin_mute_info")],
+            [InlineKeyboardButton("🔊 Размутить пользователя", callback_data="admin_unmute_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            "🛡️ <b>Модерация</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return ADMIN_MENU
+    
+    elif query.data == "admin_reports_menu":
+        keyboard = [
+            [InlineKeyboardButton("📊 Ежедневный отчет", callback_data="admin_daily_report_info")],
+            [InlineKeyboardButton("📈 Еженедельный отчет", callback_data="admin_weekly_report_info")],
+            [InlineKeyboardButton("💰 Статистика доходов", callback_data="admin_revenue_stats_info")],
+            [InlineKeyboardButton("🔥 Популярные карточки", callback_data="admin_popular_cards_info")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            "📈 <b>Статистика и отчеты</b>\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return ADMIN_MENU
+    
+    # Информационные callback'ы для команд
+    elif query.data.endswith("_info"):
+        command_name = query.data.replace("_info", "")
+        info_text = get_command_info(command_name)
+        keyboard = [
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            f"ℹ️ <b>Информация о команде</b>\n\n{info_text}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return ADMIN_MENU
+    
+    elif query.data == "admin_add_stars_all":
+        await query.edit_message_text(
+            "⭐ <b>Добавить всем звезд</b>\n\nИспользуйте команду:\n<code>/admin_stars [количество] [причина]</code>\n\nПример:\n<code>/admin_stars 500 Праздничный бонус</code>",
             parse_mode="HTML"
         )
         return await show_admin_back_menu(query)
     
-    elif query.data == "admin_reset_pity":
-        await reset_pity_all()
+    elif query.data == "admin_add_stars_user":
         await query.edit_message_text(
-            "🔄 <b>Pity сброшен для всех пользователей</b>",
+            "👤 <b>Добавить звезд пользователю</b>\n\nИспользуйте команду:\n<code>/admin_stars_user [ID] [количество]</code>\n\nПример:\n<code>/admin_stars_user 123456789 100</code>",
+            parse_mode="HTML"
+        )
+        return await show_admin_back_menu(query)
+    
+    elif query.data == "admin_give_cards":
+        await query.edit_message_text(
+            "🎴 <b>Выдать карточки пользователю</b>\n\nИспользуйте команду:\n<code>/admin_give_cards [ID] [количество]</code>\n\nПример:\n<code>/admin_give_cards 123456789 10</code>",
             parse_mode="HTML"
         )
         return await show_admin_back_menu(query)
@@ -85,105 +228,24 @@ async def admin_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif query.data == "admin_back":
         # Возвращаемся к главному меню админ-панели
         keyboard = [
-            [InlineKeyboardButton("⭐ Добавить всем звезд", callback_data="admin_add_stars_all")],
-            [InlineKeyboardButton("👤 Добавить звезд пользователю", callback_data="admin_add_stars_user")],
-            [InlineKeyboardButton("🎴 Выдать карточки пользователю", callback_data="admin_give_cards")],
-            [InlineKeyboardButton("📊 Статистика", callback_data="admin_stats")],
-            [InlineKeyboardButton("🔄 Сбросить pity всем", callback_data="admin_reset_pity")],
+            [InlineKeyboardButton("👥 Управление пользователями", callback_data="admin_users_menu")],
+            [InlineKeyboardButton("🎴 Управление карточками", callback_data="admin_cards_menu")],
+            [InlineKeyboardButton("💰 Экономика", callback_data="admin_economy_menu")],
+            [InlineKeyboardButton("🎮 Игровые механики", callback_data="admin_game_menu")],
+            [InlineKeyboardButton("📊 Аналитика и мониторинг", callback_data="admin_analytics_menu")],
+            [InlineKeyboardButton("⚙️ Системные команды", callback_data="admin_system_menu")],
+            [InlineKeyboardButton("🎉 Праздничные функции", callback_data="admin_events_menu")],
+            [InlineKeyboardButton("🛡️ Модерация", callback_data="admin_moderation_menu")],
+            [InlineKeyboardButton("📈 Статистика и отчеты", callback_data="admin_reports_menu")],
             [InlineKeyboardButton("❌ Отмена", callback_data="admin_cancel")]
         ]
         
         await query.edit_message_text(
-            "🔧 <b>Админ-панель</b>\n\nВыберите действие:",
+            "🔧 <b>Админ-панель</b>\n\nВыберите категорию:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
         return ADMIN_MENU
-
-async def add_stars_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка ввода количества звезд"""
-    try:
-        amount = int(update.message.text)
-        if amount <= 0:
-            await update.message.reply_text("❌ Количество должно быть положительным!")
-            return ADD_STARS_AMOUNT
-        
-        # Проверяем, есть ли целевой пользователь в контексте
-        target_user_id = context.user_data.get('target_user_id')
-        if target_user_id:
-            # Добавляем звезды конкретному пользователю
-            await add_stars_to_user(target_user_id, amount)
-            await update.message.reply_text(f"✅ Добавлено {amount} звезд пользователю!")
-            # Очищаем контекст
-            context.user_data.pop('target_user_id', None)
-        else:
-            # Добавляем звезды всем пользователям с уведомлением
-            reason = "Бонус от администрации"
-            await add_stars_to_all_with_notification(amount, reason, update)
-            await update.message.reply_text(f"✅ Добавлено {amount} звезд всем пользователям!\n\nПричина: {reason}")
-        
-        return ConversationHandler.END
-        
-    except ValueError:
-        await update.message.reply_text("❌ Введите корректное число!")
-        return ADD_STARS_AMOUNT
-
-async def add_stars_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка ввода Telegram ID пользователя"""
-    try:
-        user_id = int(update.message.text)
-        pb_user = pb.get_user_by_telegram_id(user_id)
-        if not pb_user:
-            await update.message.reply_text("❌ Пользователь не найден!")
-            return ADD_STARS_USER
-        
-        context.user_data['target_user_id'] = user_id
-        await update.message.reply_text(
-            f"👤 Пользователь найден: {pb_user.get('name', 'Неизвестно')}\n\nВведите количество звезд:"
-        )
-        return ADD_STARS_AMOUNT
-        
-    except ValueError:
-        await update.message.reply_text("❌ Введите корректный Telegram ID!")
-        return ADD_STARS_USER
-
-async def give_cards_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка ввода Telegram ID для выдачи карточек"""
-    try:
-        user_id = int(update.message.text)
-        pb_user = pb.get_user_by_telegram_id(user_id)
-        if not pb_user:
-            await update.message.reply_text("❌ Пользователь не найден!")
-            return GIVE_CARDS_USER
-        
-        context.user_data['target_user_id'] = user_id
-        await update.message.reply_text(
-            f"👤 Пользователь найден: {pb_user.get('name', 'Неизвестно')}\n\nВведите количество карточек:"
-        )
-        return GIVE_CARDS_AMOUNT
-        
-    except ValueError:
-        await update.message.reply_text("❌ Введите корректный Telegram ID!")
-        return GIVE_CARDS_USER
-
-async def give_cards_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка ввода количества карточек"""
-    try:
-        amount = int(update.message.text)
-        if amount <= 0 or amount > 100:
-            await update.message.reply_text("❌ Количество должно быть от 1 до 100!")
-            return GIVE_CARDS_AMOUNT
-        
-        user_id = context.user_data.get('target_user_id')
-        await give_random_cards(user_id, amount)
-        await update.message.reply_text(f"✅ Выдано {amount} случайных карточек пользователю!")
-        # Очищаем контекст
-        context.user_data.pop('target_user_id', None)
-        return ConversationHandler.END
-        
-    except ValueError:
-        await update.message.reply_text("❌ Введите корректное число!")
-        return GIVE_CARDS_AMOUNT
 
 async def admin_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отмена админ-операции"""
@@ -319,17 +381,15 @@ async def get_admin_stats():
 
 # Создание ConversationHandler для админ-панели
 def get_admin_conversation_handler():
-    """Создать ConversationHandler для админ-панели"""
+    """Возвращает ConversationHandler для админ-панели"""
     return ConversationHandler(
         entry_points=[CommandHandler("admin", admin_start)],
         states={
-            ADMIN_MENU: [CallbackQueryHandler(admin_menu_callback)],
-            ADD_STARS_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_stars_amount)],
-            ADD_STARS_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_stars_user)],
-            GIVE_CARDS_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, give_cards_user)],
-            GIVE_CARDS_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, give_cards_amount)],
+            ADMIN_MENU: [
+                CallbackQueryHandler(admin_menu_callback, pattern="^admin_")
+            ]
         },
-        fallbacks=[CommandHandler("cancel", admin_cancel)],
+        fallbacks=[CommandHandler("admin", admin_start)],
         per_message=False
     )
 
@@ -408,20 +468,24 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         print(f"DEBUG: [handle_admin_callback] Обрабатываю admin_back")
         # Возвращаемся к главному меню админ-панели
         keyboard = [
-            [InlineKeyboardButton("⭐ Добавить всем звезд", callback_data="admin_add_stars_all")],
-            [InlineKeyboardButton("👤 Добавить звезд пользователю", callback_data="admin_add_stars_user")],
-            [InlineKeyboardButton("🎴 Выдать карточки пользователю", callback_data="admin_give_cards")],
-            [InlineKeyboardButton("📊 Статистика", callback_data="admin_stats")],
-            [InlineKeyboardButton("🔄 Сбросить pity всем", callback_data="admin_reset_pity")],
+            [InlineKeyboardButton("👥 Управление пользователями", callback_data="admin_users_menu")],
+            [InlineKeyboardButton("🎴 Управление карточками", callback_data="admin_cards_menu")],
+            [InlineKeyboardButton("💰 Экономика", callback_data="admin_economy_menu")],
+            [InlineKeyboardButton("🎮 Игровые механики", callback_data="admin_game_menu")],
+            [InlineKeyboardButton("📊 Аналитика и мониторинг", callback_data="admin_analytics_menu")],
+            [InlineKeyboardButton("⚙️ Системные команды", callback_data="admin_system_menu")],
+            [InlineKeyboardButton("🎉 Праздничные функции", callback_data="admin_events_menu")],
+            [InlineKeyboardButton("🛡️ Модерация", callback_data="admin_moderation_menu")],
+            [InlineKeyboardButton("📈 Статистика и отчеты", callback_data="admin_reports_menu")],
             [InlineKeyboardButton("❌ Отмена", callback_data="admin_cancel")]
         ]
         
         await query.edit_message_text(
-            "🔧 <b>Админ-панель</b>\n\nВыберите действие:",
+            "🔧 <b>Админ-панель</b>\n\nВыберите категорию:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        return
+        return ADMIN_MENU
     
     print(f"DEBUG: [handle_admin_callback] Неизвестный callback: {data}") 
 
@@ -1624,3 +1688,83 @@ async def admin_give_cards_command(update: Update, context: ContextTypes.DEFAULT
         
     except ValueError:
         await update.message.reply_text("❌ Введите корректные числа!") 
+
+def get_command_info(command_name):
+    """Возвращает информацию о команде"""
+    command_info = {
+        "admin_ban": "🚫 <b>Заблокировать пользователя</b>\n\nИспользуйте: <code>/admin_ban [ID] [причина]</code>\n\nПример: <code>/admin_ban 123456789 Спам</code>\n\nЗаблокирует пользователя с указанным Telegram ID.",
+        
+        "admin_unban": "✅ <b>Разблокировать пользователя</b>\n\nИспользуйте: <code>/admin_unban [ID]</code>\n\nПример: <code>/admin_unban 123456789</code>\n\nРазблокирует пользователя с указанным Telegram ID.",
+        
+        "admin_reset_user": "🔄 <b>Сбросить прогресс пользователя</b>\n\nИспользуйте: <code>/admin_reset_user [ID]</code>\n\nПример: <code>/admin_reset_user 123456789</code>\n\nСбросит весь прогресс пользователя (карточки, звезды, уровень).",
+        
+        "admin_set_level": "📊 <b>Установить уровень</b>\n\nИспользуйте: <code>/admin_set_level [ID] [уровень]</code>\n\nПример: <code>/admin_set_level 123456789 50</code>\n\nУстановит указанный уровень пользователю.",
+        
+        "admin_set_exp": "⭐ <b>Установить опыт</b>\n\nИспользуйте: <code>/admin_set_exp [ID] [опыт]</code>\n\nПример: <code>/admin_set_exp 123456789 10000</code>\n\nУстановит указанное количество опыта пользователю.",
+        
+        "admin_user_info": "👤 <b>Информация о пользователе</b>\n\nИспользуйте: <code>/admin_user_info [ID]</code>\n\nПример: <code>/admin_user_info 123456789</code>\n\nПокажет подробную информацию о пользователе.",
+        
+        "admin_user_history": "📜 <b>История пользователя</b>\n\nИспользуйте: <code>/admin_user_history [ID]</code>\n\nПример: <code>/admin_user_history 123456789</code>\n\nПокажет историю действий пользователя.",
+        
+        "admin_add_card": "➕ <b>Добавить карточку пользователю</b>\n\nИспользуйте: <code>/admin_add_card [ID] [card_id]</code>\n\nПример: <code>/admin_add_card 123456789 card_123</code>\n\nДобавит указанную карточку пользователю.",
+        
+        "admin_remove_card": "➖ <b>Удалить карточку у пользователя</b>\n\nИспользуйте: <code>/admin_remove_card [ID] [card_id]</code>\n\nПример: <code>/admin_remove_card 123456789 card_123</code>\n\nУдалит указанную карточку у пользователя.",
+        
+        "admin_duplicate_card": "🔄 <b>Дублировать карточку</b>\n\nИспользуйте: <code>/admin_duplicate_card [ID] [card_id] [количество]</code>\n\nПример: <code>/admin_duplicate_card 123456789 card_123 5</code>\n\nДобавит указанное количество копий карточки пользователю.",
+        
+        "admin_card_stats": "📊 <b>Статистика карточки</b>\n\nИспользуйте: <code>/admin_card_stats [card_id]</code>\n\nПример: <code>/admin_card_stats card_123</code>\n\nПокажет статистику владения карточкой.",
+        
+        "admin_set_stars": "💰 <b>Установить звезды пользователю</b>\n\nИспользуйте: <code>/admin_set_stars [ID] [количество]</code>\n\nПример: <code>/admin_set_stars 123456789 1000</code>\n\nУстановит указанное количество звезд пользователю.",
+        
+        "admin_multiply_stars": "📈 <b>Умножить звезды у всех</b>\n\nИспользуйте: <code>/admin_multiply_stars [множитель]</code>\n\nПример: <code>/admin_multiply_stars 2</code>\n\nУмножит звезды у всех пользователей на указанный множитель.",
+        
+        "admin_daily_reset": "🔄 <b>Сбросить ежедневные бонусы</b>\n\nИспользуйте: <code>/admin_daily_reset</code>\n\nСбросит ежедневные бонусы у всех пользователей.",
+        
+        "admin_set_banner": "🎯 <b>Установить баннер пользователю</b>\n\nИспользуйте: <code>/admin_set_banner [ID] [группа] [альбом]</code>\n\nПример: <code>/admin_set_banner 123456789 BLACKPINK BORN PINK</code>\n\nУстановит указанный баннер пользователю.",
+        
+        "admin_reset_banners": "🔄 <b>Сбросить баннеры у всех</b>\n\nИспользуйте: <code>/admin_reset_banners</code>\n\nСбросит баннеры у всех пользователей.",
+        
+        "admin_give_achievement": "🏆 <b>Выдать достижение</b>\n\nИспользуйте: <code>/admin_give_achievement [ID] [группа] [альбом] [уровень]</code>\n\nПример: <code>/admin_give_achievement 123456789 BLACKPINK BORN PINK 100</code>\n\nВыдаст достижение пользователю.",
+        
+        "admin_reset_achievements": "🔄 <b>Сбросить достижения</b>\n\nИспользуйте: <code>/admin_reset_achievements [ID]</code>\n\nПример: <code>/admin_reset_achievements 123456789</code>\n\nСбросит все достижения пользователя.",
+        
+        "admin_set_pity": "🎰 <b>Установить pity</b>\n\nИспользуйте: <code>/admin_set_pity [ID] [legendary] [void]</code>\n\nПример: <code>/admin_set_pity 123456789 50 30</code>\n\nУстановит указанные значения pity пользователю.",
+        
+        "admin_give_exp": "⭐ <b>Выдать опыт пользователю</b>\n\nИспользуйте: <code>/admin_give_exp [ID] [количество]</code>\n\nПример: <code>/admin_give_exp 123456789 5000</code>\n\nДобавит указанное количество опыта пользователю.",
+        
+        "admin_top_users": "👥 <b>Топ пользователей</b>\n\nИспользуйте: <code>/admin_top_users [количество]</code>\n\nПример: <code>/admin_top_users 10</code>\n\nПокажет топ пользователей по уровню.",
+        
+        "admin_activity_log": "📈 <b>Лог активности</b>\n\nИспользуйте: <code>/admin_activity_log [дни]</code>\n\nПример: <code>/admin_activity_log 7</code>\n\nПокажет активность за указанное количество дней.",
+        
+        "admin_backup": "💾 <b>Создать резервную копию</b>\n\nИспользуйте: <code>/admin_backup</code>\n\nСоздаст резервную копию базы данных.",
+        
+        "admin_maintenance": "🔧 <b>Режим обслуживания</b>\n\nИспользуйте: <code>/admin_maintenance [on/off]</code>\n\nПример: <code>/admin_maintenance on</code>\n\nВключит/выключит режим обслуживания.",
+        
+        "admin_announce": "📢 <b>Отправить объявление</b>\n\nИспользуйте: <code>/admin_announce [сообщение]</code>\n\nПример: <code>/admin_announce Важное объявление!</code>\n\nОтправит объявление всем пользователям.",
+        
+        "admin_test_notification": "🔔 <b>Тест уведомлений</b>\n\nИспользуйте: <code>/admin_test_notification</code>\n\nОтправит тестовое уведомление всем пользователям.",
+        
+        "admin_event_start": "🎉 <b>Запустить событие</b>\n\nИспользуйте: <code>/admin_event_start [название] [длительность]</code>\n\nПример: <code>/admin_event_start Новогоднее событие 7</code>\n\nЗапустит событие на указанное количество дней.",
+        
+        "admin_event_end": "🔚 <b>Завершить событие</b>\n\nИспользуйте: <code>/admin_event_end</code>\n\nЗавершит активное событие.",
+        
+        "admin_give_event_rewards": "🎁 <b>Выдать награды события</b>\n\nИспользуйте: <code>/admin_give_event_rewards [событие]</code>\n\nПример: <code>/admin_give_event_rewards Новогоднее событие</code>\n\nВыдаст награды участникам события.",
+        
+        "admin_set_event_banner": "🎴 <b>Установить баннер события</b>\n\nИспользуйте: <code>/admin_set_event_banner [группа] [альбом]</code>\n\nПример: <code>/admin_set_event_banner BLACKPINK BORN PINK</code>\n\nУстановит баннер для активного события.",
+        
+        "admin_warn": "⚠️ <b>Предупреждение</b>\n\nИспользуйте: <code>/admin_warn [ID] [причина]</code>\n\nПример: <code>/admin_warn 123456789 Нарушение правил</code>\n\nОтправит предупреждение пользователю.",
+        
+        "admin_mute": "🔇 <b>Замутить пользователя</b>\n\nИспользуйте: <code>/admin_mute [ID] [часы]</code>\n\nПример: <code>/admin_mute 123456789 24</code>\n\nЗамутит пользователя на указанное количество часов.",
+        
+        "admin_unmute": "🔊 <b>Размутить пользователя</b>\n\nИспользуйте: <code>/admin_unmute [ID]</code>\n\nПример: <code>/admin_unmute 123456789</code>\n\nРазмутит пользователя.",
+        
+        "admin_daily_report": "📊 <b>Ежедневный отчет</b>\n\nИспользуйте: <code>/admin_daily_report</code>\n\nСгенерирует ежедневный отчет.",
+        
+        "admin_weekly_report": "📈 <b>Еженедельный отчет</b>\n\nИспользуйте: <code>/admin_weekly_report</code>\n\nСгенерирует еженедельный отчет.",
+        
+        "admin_revenue_stats": "💰 <b>Статистика доходов</b>\n\nИспользуйте: <code>/admin_revenue_stats</code>\n\nПокажет статистику доходов.",
+        
+        "admin_popular_cards": "🔥 <b>Популярные карточки</b>\n\nИспользуйте: <code>/admin_popular_cards [количество]</code>\n\nПример: <code>/admin_popular_cards 10</code>\n\nПокажет самые популярные карточки."
+    }
+    
+    return command_info.get(command_name, f"ℹ️ Информация о команде {command_name} недоступна.") 
