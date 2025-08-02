@@ -12,6 +12,10 @@ ADMIN_MENU, ADD_STARS_MENU, ADD_STARS_AMOUNT, ADD_STARS_USER, GIVE_CARDS_MENU, G
 async def admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Главное меню админ-панели"""
     user_id = update.effective_user.id
+    print(f"DEBUG: [admin_start] Пользователь {user_id} пытается получить доступ к админ-панели")
+    print(f"DEBUG: [admin_start] ADMIN_IDS: {ADMIN_IDS}")
+    print(f"DEBUG: [admin_start] user_id in ADMIN_IDS: {user_id in ADMIN_IDS}")
+    
     if user_id not in ADMIN_IDS:
         await update.message.reply_text("⛔ Доступ запрещен.")
         return ConversationHandler.END
@@ -340,6 +344,10 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Проверяем права доступа
     user_id = query.from_user.id
+    print(f"DEBUG: [handle_admin_callback] Пользователь {user_id} пытается получить доступ к админ-функциям")
+    print(f"DEBUG: [handle_admin_callback] ADMIN_IDS: {ADMIN_IDS}")
+    print(f"DEBUG: [handle_admin_callback] user_id in ADMIN_IDS: {user_id in ADMIN_IDS}")
+    
     if user_id not in ADMIN_IDS:
         await query.edit_message_text("⛔ Доступ запрещен.")
         return
