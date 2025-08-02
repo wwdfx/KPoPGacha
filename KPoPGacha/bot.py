@@ -476,6 +476,16 @@ async def pull10_impl(user, pb_user, update):
         if target:
             await target.reply_text("<b>Недостаточно звёзд для 10 попыток!</b>", parse_mode="HTML")
         return
+    
+    # Отправляем сообщение о начале процесса
+    loading_message = None
+    if target:
+        try:
+            loading_message = await target.reply_text("🎲 <b>Крутим гачу...</b>", parse_mode="HTML")
+            print(f"DEBUG: [pull10_impl] Отправлено сообщение о загрузке")
+        except Exception as e:
+            print(f"DEBUG: [pull10_impl] Ошибка отправки сообщения о загрузке: {e}")
+            loading_message = None
     user_id = pb_user["id"]
     pity_legendary = pb_user.get("pity_legendary", 0)
     pity_void = pb_user.get("pity_void", 0)
@@ -572,6 +582,14 @@ async def pull10_impl(user, pb_user, update):
         return
     pb.update_user_stars_and_pity(user_id, stars - PULL10_COST, pity_legendary, pity_void)
     updated_user, levelup = pb.add_exp_and_check_levelup(user_id, level, exp, total_exp)
+    # Удаляем сообщение о загрузке
+    if loading_message:
+        try:
+            await loading_message.delete()
+            print(f"DEBUG: [pull10_impl] Сообщение о загрузке удалено")
+        except Exception as e:
+            print(f"DEBUG: [pull10_impl] Ошибка удаления сообщения о загрузке: {e}")
+    
     if media:
         print(f"DEBUG: [pull10_impl] Начинаю отправку {len(media)} карточек")
         # Отправляем только медиа-группой, без fallback
