@@ -1,7 +1,10 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from config import ADMIN_IDS
-import pb_client as pb
+from pb_client import PBClient
+
+# Создаем экземпляр PBClient
+pb = PBClient()
 
 # Состояния для ConversationHandler
 ADMIN_MENU, ADD_STARS_MENU, ADD_STARS_AMOUNT, ADD_STARS_USER, GIVE_CARDS_MENU, GIVE_CARDS_USER, GIVE_CARDS_AMOUNT = range(7)
