@@ -57,12 +57,12 @@ def get_cached_image_path(image_url):
 
 # Шансы выпадения по редкости (сумма = 100)
 RARITY_CHANCES = [
-    (1, 40),   # 1 звезда - 29%
-    (2, 32),   # 2 звезды - 30%
+    (1, 34.8),   # 1 звезда - 29%
+    (2, 25),   # 2 звезды - 30%
     (3, 20),   # 3 звезды - 25%
-    (4, 5),   # 4 звезды - 12%
-    (5, 2),    # 5 звёзд - 3%
-    (6, 0.5),    # 6 звёзд - 0.5%
+    (4, 15),   # 4 звезды - 12%
+    (5, 5),    # 5 звёзд - 3%
+    (6, 0.2),    # 6 звёзд - 0.5%
 ]
 RARITY_WEIGHTS = [chance for _, chance in RARITY_CHANCES]
 RARITY_VALUES = [rarity for rarity, _ in RARITY_CHANCES]
